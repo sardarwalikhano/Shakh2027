@@ -1,10 +1,17 @@
 import type { AuthResponse } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 
-const redirectUrl = (path: string) => `${window.location.origin}${window.location.pathname}${path}`;
+function authRedirectUrl(flow: 'email-confirmation' | 'password-recovery') {
+  const url = new URL(window.location.origin + window.location.pathname);
+  url.searchParams.set('auth', flow);
+  return url.toString();
+}
 
 export async function signInWithPassword(email: string, password: string): Promise<AuthResponse> {
-  return supabase.auth.signInWithPassword({ email: email.trim(), password });
+  return supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
 }
 
 export async function signUpWithPassword(input: {
@@ -15,10 +22,10 @@ export async function signUpWithPassword(input: {
   phone?: string;
 }): Promise<AuthResponse> {
   return supabase.auth.signUp({
-    email: input.email.trim(),
+    email: input.email.trim().toLowerCase(),
     password: input.password,
     options: {
-      emailRedirectTo: redirectUrl('#auth/sign-in'),
+      emailRedirectTo: authRedirectUrl('email-confirmation'),
       data: {
         full_name: input.fullName.trim(),
         preferred_language: 'ckb',
@@ -29,9 +36,19 @@ export async function signUpWithPassword(input: {
   });
 }
 
+export async function resendSignupConfirmation(email: string) {
+  return supabase.auth.resend({
+    type: 'signup',
+    email: email.trim().toLowerCase(),
+    options: {
+      emailRedirectTo: authRedirectUrl('email-confirmation'),
+    },
+  });
+}
+
 export async function requestPasswordReset(email: string) {
-  return supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: redirectUrl('#auth/reset-password'),
+  return supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: authRedirectUrl('password-recovery'),
   });
 }
 
