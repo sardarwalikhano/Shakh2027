@@ -289,7 +289,7 @@ export default function MarketplacePage() {
         {favoriteLoadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{favoriteLoadError}</div> : null}
         {favoriteMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{favoriteMessage}</div> : null}
         {cartMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{cartMessage}</div> : null}
-        <StorefrontPreview />
+        <StorefrontPreview sellerName={selectedProduct?.seller?.name} />
       </main>
     </AppShell>
   );
