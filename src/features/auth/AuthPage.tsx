@@ -9,12 +9,13 @@ import {
 } from './auth';
 import { useAuth } from './AuthContext';
 
-function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' {
+function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' | 'email-confirmation' {
   const hashMode = window.location.hash.split('/')[1];
-  if (hashMode === 'sign-up' || hashMode === 'reset-password') return hashMode;
+  if (hashMode === 'sign-up' || hashMode === 'reset-password' || hashMode === 'email-confirmation') return hashMode;
 
   const query = new URLSearchParams(window.location.search);
   if (query.get('auth') === 'password-recovery') return 'reset-password';
+  if (query.get('auth') === 'email-confirmation') return 'email-confirmation';
 
   return 'sign-in';
 }
@@ -30,6 +31,11 @@ function friendlyAuthError(error: unknown) {
 
   if (normalized.includes('invalid login credentials')) return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.';
   if (normalized.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە. تکایە پەیامی پشتڕاستکردنەوەکە بکەرەوە.';
+  if (normalized.includes('after ') && normalized.includes(' seconds')) {
+    const match = normalized.match(/after\s+(\d+)\s+seconds?/);
+    if (match) return 'تکایە ' + match[1] + ' چرکە چاوەڕێ بکە و پاشان دووبارە هەوڵ بدەرەوە.';
+  }
+  if (normalized.includes('email rate limit') || normalized.includes('rate limit exceeded')) return 'ناردنی ئیمەیڵ سنووردارە. تکایە نزیکەی ٦٠ چرکە چاوەڕێ بکە و پاشان دووبارە هەوڵ بدەرەوە.';
   if (normalized.includes('password')) return message || 'وشەی نهێنی پەسەند نەکرا.';
   if (normalized.includes('rate limit')) return 'داواکارییەکان زۆرن. تکایە دواتر هەوڵ بدەرەوە.';
   if (normalized.includes('redirect')) return 'لینکی authentication ڕێک نەخراوە. Redirect URL ـەکانی Supabase پشکنە.';
@@ -47,6 +53,9 @@ export default function AuthPage() {
   const [city, setCity] = useState('هەولێر');
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
+  const [confirmationCooldown, setConfirmationCooldown] = useState(0);
+  const [resetCooldown, setResetCooldown] = useState(0);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +71,22 @@ export default function AuthPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (confirmationCooldown <= 0) return;
+    const timer = window.setTimeout(() => setConfirmationCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [confirmationCooldown]);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResetCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resetCooldown]);
+
+  useEffect(() => {
+    if (mode === 'email-confirmation' && user) window.location.hash = '#market';
+  }, [mode, user]);
+
   const navigateToSignIn = () => {
     window.history.replaceState({}, '', window.location.pathname);
     window.location.hash = '#auth/sign-in';
@@ -75,6 +100,7 @@ export default function AuthPage() {
     setBusy(true);
     setError(null);
     setMessage(null);
+    setShowResendConfirmation(false);
 
     try {
       if (mode === 'sign-in') {
@@ -101,7 +127,11 @@ export default function AuthPage() {
         if (signUpError) throw signUpError;
 
         if (!data.session) {
-          setMessage('هەژمارەکە دروست کرا. پەیامی پشتڕاستکردنەوە بۆ ئیمەیڵەکەت نێردرا؛ دوای پشتڕاستکردنەوە دەتوانیت بچیتە ژوورەوە.');
+          window.location.hash = '#auth/email-confirmation';
+          setMode('email-confirmation');
+          setPassword('');
+          setConfirmPassword('');
+          setMessage('هەژمارەکە دروست کرا. پەیامی پشتڕاستکردنەوە بۆ ئیمەیڵەکەت نێردرا؛ دوای کردنەوەی لینکەکە بە شێوەی خۆکار دەچیتە بازار.');
         } else {
           window.location.hash = '#market';
         }
@@ -122,7 +152,10 @@ export default function AuthPage() {
       setConfirmPassword('');
       setMessage('وشەی نهێنی بە سەرکەوتوویی نوێکرایەوە. ئێستا دەتوانیت بچیتە ژوورەوە.');
     } catch (caught) {
-      setError(friendlyAuthError(caught));
+      const friendlyMessage = friendlyAuthError(caught);
+      setError(friendlyMessage);
+      const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
+      setShowResendConfirmation(mode === 'sign-in' && normalized.includes('email not confirmed'));
     } finally {
       setBusy(false);
     }
@@ -134,6 +167,10 @@ export default function AuthPage() {
       setError('سەرەتا ئیمەیڵەکەت بنووسە.');
       return;
     }
+    if (resetCooldown > 0) {
+      setError('تکایە ' + resetCooldown + ' چرکە چاوەڕێ بکە.');
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -141,9 +178,13 @@ export default function AuthPage() {
     try {
       const { error: resetError } = await requestPasswordReset(normalizedEmail);
       if (resetError) throw resetError;
+      setResetCooldown(60);
       setMessage('ئەگەر ئەم ئیمەیڵە هەژمارێکی دروستی هەبێت، لینکی گۆڕینی وشەی نهێنی بۆی نێردرا.');
     } catch (caught) {
-      setError(friendlyAuthError(caught));
+      const friendlyMessage = friendlyAuthError(caught);
+      setError(friendlyMessage);
+      const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
+      if (normalized.includes('rate limit') || normalized.includes('after ')) setResetCooldown(60);
     } finally {
       setBusy(false);
     }
@@ -155,6 +196,10 @@ export default function AuthPage() {
       setError('ئیمەیڵەکەت بنووسە بۆ دووبارە ناردنی پەیامی پشتڕاستکردنەوە.');
       return;
     }
+    if (confirmationCooldown > 0) {
+      setError('تکایە ' + confirmationCooldown + ' چرکە چاوەڕێ بکە.');
+      return;
+    }
 
     setResending(true);
     setError(null);
@@ -162,9 +207,13 @@ export default function AuthPage() {
     try {
       const { error: resendError } = await resendSignupConfirmation(normalizedEmail);
       if (resendError) throw resendError;
+      setConfirmationCooldown(60);
       setMessage('پەیامی پشتڕاستکردنەوە دووبارە نێردرا.');
     } catch (caught) {
-      setError(friendlyAuthError(caught));
+      const friendlyMessage = friendlyAuthError(caught);
+      setError(friendlyMessage);
+      const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
+      if (normalized.includes('rate limit') || normalized.includes('after ')) setConfirmationCooldown(60);
     } finally {
       setResending(false);
     }
@@ -189,6 +238,7 @@ export default function AuthPage() {
             <a href="#market" className="text-xs font-black text-slate-400 hover:text-slate-700">بۆ بازار</a>
           </div>
 
+          {mode !== 'email-confirmation' && (
           <form onSubmit={submit} className="grid gap-4">
             {mode === 'sign-up' && <>
               <Field label="ناوی تەواو" value={fullName} onChange={setFullName} required autoComplete="name" />
@@ -232,8 +282,8 @@ export default function AuthPage() {
 
             {mode === 'sign-up' && (
               <>
-                <button type="button" onClick={() => void resendConfirmation()} disabled={busy || resending || !email.trim()} className="text-xs font-black text-slate-500 hover:text-orange-600 disabled:opacity-40">
-                  {resending ? 'دووبارە دەنێردرێت...' : 'پەیامی پشتڕاستکردنەوە دووبارە بنێرە'}
+                <button type="button" onClick={() => void resendConfirmation()} disabled={busy || resending || !email.trim() || confirmationCooldown > 0} className="text-xs font-black text-slate-500 hover:text-orange-600 disabled:opacity-40">
+                  {resending ? 'دووبارە دەنێردرێت...' : confirmationCooldown > 0 ? 'دووبارە بنێرە (' + confirmationCooldown + ')' : 'پەیامی پشتڕاستکردنەوە دووبارە بنێرە'}
                 </button>
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-xs font-semibold leading-6 text-orange-900">
                   هەموو هەژمارە نوێکان سەرەتا کڕیارن.
@@ -241,11 +291,48 @@ export default function AuthPage() {
               </>
             )}
           </form>
+          )}
+
+          {mode === 'email-confirmation' && (
+            <section className="grid gap-4 rounded-3xl border border-orange-100 bg-orange-50 p-5">
+              <div>
+                <p className="text-xs font-black text-orange-700">EMAIL CONFIRMATION</p>
+                <h3 className="mt-2 text-lg font-black text-slate-950">پشتڕاستکردنەوەی ئیمەیڵ</h3>
+                <p className="mt-2 text-xs font-semibold leading-6 text-slate-600">
+                  لینکەکەی پشتڕاستکردنەوە لە ئیمەیڵەکەت بکەرەوە. ئەگەر لینکەکە کۆن بوو یان بەکار هاتووە، دەتوانیت داواکارییەکە دووبارە بنێریت.
+                </p>
+              </div>
+              <Field label="ئیمەیڵ" value={email} onChange={setEmail} required type="email" autoComplete="email" />
+              {confirmationCooldown > 0 && (
+                <p className="text-xs font-bold text-orange-700">دووبارە ناردن دوای {confirmationCooldown} چرکە بەردەست دەبێت.</p>
+              )}
+              <button
+                type="button"
+                onClick={() => void resendConfirmation()}
+                disabled={resending || busy || !email.trim() || confirmationCooldown > 0}
+                className="min-h-11 rounded-2xl border border-orange-200 bg-white px-4 text-xs font-black text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {resending ? 'دووبارە دەنێردرێت...' : confirmationCooldown > 0 ? 'دووبارە بنێرە (' + confirmationCooldown + ')' : 'پەیامی پشتڕاستکردنەوە دووبارە بنێرە'}
+              </button>
+              <button type="button" onClick={navigateToSignIn} className="text-xs font-black text-slate-500 hover:text-orange-600">
+                بگەڕێوە بۆ چوونەژوورەوە
+              </button>
+            </section>
+          )}
 
           {mode === 'sign-in' && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={() => void forgotPassword()} disabled={busy || !email.trim()} className="text-xs font-black text-slate-500 hover:text-orange-600 disabled:opacity-40">وشەی نهێنیت لەبیرچووە؟</button>
-              <a href="#auth/sign-up" className="text-xs font-black text-orange-600">هەژمارت نییە؟</a>
+            <div className="mt-4 grid gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button type="button" onClick={() => void forgotPassword()} disabled={busy || !email.trim() || resetCooldown > 0} className="text-xs font-black text-slate-500 hover:text-orange-600 disabled:opacity-40">
+                  {resetCooldown > 0 ? 'دووبارە داواکردن (' + resetCooldown + ')' : 'وشەی نهێنیت لەبیرچووە؟'}
+                </button>
+                <a href="#auth/sign-up" className="text-xs font-black text-orange-600">هەژمارت نییە؟</a>
+              </div>
+              {showResendConfirmation && (
+                <button type="button" onClick={() => void resendConfirmation()} disabled={busy || resending || !email.trim() || confirmationCooldown > 0} className="text-xs font-black text-orange-600 hover:text-orange-700 disabled:opacity-40">
+                  {resending ? 'دووبارە دەنێردرێت...' : confirmationCooldown > 0 ? 'پەیامی نوێ دوای ' + confirmationCooldown + ' چرکە' : 'ئیمەیڵ پشتڕاست نەکراوەتەوە — دووبارە پەیام بنێرە'}
+                </button>
+              )}
             </div>
           )}
 
