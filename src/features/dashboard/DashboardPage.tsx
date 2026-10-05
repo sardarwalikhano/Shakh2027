@@ -39,9 +39,53 @@ function Stat({ label, value, detail, tone='neutral' }: { label:string; value:st
 }
 
 function OrdersTable({ items }: { items: OperationsSnapshot['recent_orders'] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[var(--shakh-shadow-sm)]">
-    <div className="flex items-end justify-between border-b border-slate-100 px-5 py-5 sm:px-6"><div><p className="dashboard-eyebrow !text-orange-600">ORDERS</p><h3 className="mt-1 text-lg font-black text-slate-950">دوایین ئۆردەرەکان</h3></div><a href="#dashboard" className="shakh-ghost-btn">هەموو</a></div>
-    {!items.length ? <p className="p-8 text-center text-sm font-bold text-slate-500">هێشتا هیچ order ـێک نییە.</p> : <div className="overflow-x-auto"><table className="min-w-[720px] w-full text-right text-xs"><thead className="bg-slate-50 text-[10px] font-black text-slate-400"><tr><th className="px-5 py-3">Order</th><th className="px-5 py-3">status</th><th className="px-5 py-3">payment</th><th className="px-5 py-3">بڕ</th><th className="px-5 py-3">کات</th></tr></thead><tbody className="divide-y divide-slate-100">{items.map((item) => <tr key={item.id}><td className="px-5 py-3 font-black text-slate-800">{item.order_number}</td><td className="px-5 py-3"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black">{statusLabel(item.status)}</span></td><td className="px-5 py-3 text-slate-500">{statusLabel(item.payment_status)}</td><td className="px-5 py-3 font-black">{money(Number(item.total_iqd))}</td><td className="whitespace-nowrap px-5 py-3 text-slate-400">{time(item.created_at)}</td></tr>)}</tbody></table></div>}
+    <div className="flex items-end justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+      <div>
+        <p className="dashboard-eyebrow !text-orange-600">ORDERS</p>
+        <h3 className="mt-1 text-lg font-black text-slate-950">دوایین ئۆردەرەکان</h3>
+      </div>
+      <a href="#dashboard" className="shakh-ghost-btn">هەموو</a>
+    </div>
+    {!items.length ? (
+      <p className="p-8 text-center text-sm font-bold text-slate-500">هێشتا هیچ order ـێک نییە.</p>
+    ) : (
+      <div className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const expanded = expandedId === item.id;
+          return (
+            <article key={item.id}>
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setExpandedId((current) => current === item.id ? null : item.id)}
+                className="flex w-full items-center gap-4 px-5 py-4 text-right transition hover:bg-slate-50 sm:px-6"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black text-slate-950">{item.customer_name}</p>
+                  <p className="mt-1 font-mono text-[10px] font-bold tracking-wide text-slate-400">#{item.order_number}</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black text-slate-500">
+                  {expanded ? 'داخستن' : 'وردەکاری'}
+                </span>
+              </button>
+              {expanded && (
+                <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div><p className="text-[9px] font-black uppercase tracking-[.14em] text-slate-400">STATUS</p><p className="mt-1 text-xs font-black text-slate-800">{statusLabel(item.status)}</p></div>
+                    <div><p className="text-[9px] font-black uppercase tracking-[.14em] text-slate-400">PAYMENT</p><p className="mt-1 text-xs font-black text-slate-800">{statusLabel(item.payment_status)}</p></div>
+                    <div><p className="text-[9px] font-black uppercase tracking-[.14em] text-slate-400">TOTAL</p><p className="mt-1 text-xs font-black text-slate-800">{money(Number(item.total_iqd))}</p></div>
+                    <div><p className="text-[9px] font-black uppercase tracking-[.14em] text-slate-400">CREATED</p><p className="mt-1 whitespace-nowrap text-xs font-black text-slate-800">{time(item.created_at)}</p></div>
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    )}
   </section>;
 }
 
