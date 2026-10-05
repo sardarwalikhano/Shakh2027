@@ -1,7 +1,7 @@
 import { formatIqd, type AddressDraft, type CartItem, type DeliveryOption, type PaymentMethod } from "../models";
 import type { CouponValidation } from "../../commerce/promotionsApi";
 
-export default function CheckoutSummary({ items, address, delivery, payment, isSubmitting, onBack, onContinue }: {
+export default function CheckoutSummary({ items, address, delivery, payment, isSubmitting, onBack, onContinue, couponCode, couponValidation, validatingCoupon, onCouponCodeChange, onValidateCoupon }: {
   items: CartItem[];
   address: AddressDraft;
   delivery: DeliveryOption | null;
