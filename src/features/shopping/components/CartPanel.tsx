@@ -21,9 +21,6 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
     );
   }
 
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
   const subtotal = items.reduce((sum, item) => sum + item.unitPriceIqd * item.quantity, 0);
   const changeQuantity = async (item: CartItem, quantity: number) => {
     setBusyId(item.id);
