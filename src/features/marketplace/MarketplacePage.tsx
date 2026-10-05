@@ -7,6 +7,7 @@ import MarketplaceToolbar from './components/MarketplaceToolbar';
 import ProductGrid from './components/ProductGrid';
 import ProductDetailPanel from './components/ProductDetailPanel';
 import StorefrontPreview from './components/StorefrontPreview';
+import MarketplacePostsRail from '../home/components/MarketplacePostsRail';
 import { getActiveCategories, getMarketplaceProducts, getProductDetails, getProductDetailsBySlugOrId, type CatalogCategory } from '../commerce/catalogApi';
 import { addVariantToCart } from '../commerce/cartApi';
 import { useAuth } from '../auth/AuthContext';
@@ -14,6 +15,7 @@ import { recordAnalyticsEvent } from '../commerce/analyticsApi';
 import { listActivePromotions, type Promotion } from '../commerce/promotionsApi';
 import { listFavoriteIds, toggleProductFavorite } from '../commerce/favoritesApi';
 import { setPageSeo } from '../../lib/seo';
+import type { PostSection } from './postsApi';
 
 export default function MarketplacePage() {
   const [filters, setFilters] = useState<MarketplaceFilters>(DEFAULT_FILTERS);
@@ -29,6 +31,10 @@ export default function MarketplacePage() {
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
   const [favoriteLoadError, setFavoriteLoadError] = useState<string | null>(null);
   const { user } = useAuth();
+  const postSection = (() => {
+    const route = window.location.hash.slice(1).split('?')[0].split('/')[0];
+    return ['food', 'supermarket', 'fashion', 'beauty'].includes(route) ? route as PostSection : 'marketplace' as PostSection;
+  })();
   const [analyticsSessionId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
@@ -257,6 +263,8 @@ export default function MarketplacePage() {
         </section>
 
         <MarketplaceToolbar value={filters} onChange={setFilters} categories={categories} />
+
+        <MarketplacePostsRail sectionCode={postSection} categoryId={filters.categoryId} />
 
         {activePromotions.length ? (
           <section aria-label="پرۆمۆشنە چالاکەکان" className="overflow-hidden rounded-[24px] border border-orange-100 bg-gradient-to-l from-orange-50 to-white p-4 shadow-[var(--shakh-shadow-sm)] sm:p-5">

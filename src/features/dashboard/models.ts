@@ -35,6 +35,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Audit Logs", hint: "تۆمارەکان", icon: "≋", permission: "platform.manage" },
     { label: "Analytics", hint: "ئامار و conversion", icon: "⌁", permission: "analytics.read" },
     { label: "Promotions", hint: "coupon و داشکاندن", icon: "%", permission: "promotions.manage" },
+    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "platform.manage" },
     { label: "Settings", hint: "ڕێکخستن", icon: "⚙", permission: "platform.manage" },
   ],
   admin: [
@@ -50,6 +51,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Support", hint: "پشتیوانی", icon: "?", permission: "support.manage" },
     { label: "Analytics", hint: "ئامار و conversion", icon: "⌁", permission: "analytics.read" },
     { label: "Promotions", hint: "coupon و داشکاندن", icon: "%", permission: "promotions.manage" },
+    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "platform.manage" },
   ],
   vendor: [
     { label: "Overview", hint: "کورتەی ستۆر", icon: "◉" },
