@@ -33,6 +33,7 @@ export default function NotificationsPage() {
   const [busy, setBusy] = useState(true);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [error, setError] = useState("");
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -53,17 +54,22 @@ export default function NotificationsPage() {
   const unread = useMemo(() => rows.filter((row) => !row.read_at).length, [rows]);
 
   async function readOne(row: NotificationRow) {
-    if (row.read_at) return;
+    if (row.read_at || busyAction) return;
+    setBusyAction(`read:${row.id}`);
     setError("");
     try {
       await markNotificationRead(row.id);
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, read_at: new Date().toISOString() } : item));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "نەتوانرا ئاگادارکردنەوەکە خوێندراوە بکرێت.");
+    } finally {
+      setBusyAction(null);
     }
   }
 
   async function readAll() {
+    if (busyAction) return;
+    setBusyAction("all");
     setError("");
     try {
       await markAllNotificationsRead();
@@ -71,6 +77,8 @@ export default function NotificationsPage() {
       setRows((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "نەتوانرا هەموو ئاگادارکردنەوەکان خوێندراوە بکرێن.");
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -101,7 +109,7 @@ export default function NotificationsPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-orange-700">{unread} نەخوێندراو</span>
-              {unread > 0 && <button onClick={() => void readAll()} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">هەمووی بخوێنەوە</button>}
+              {unread > 0 && <button type="button" disabled={busyAction !== null} onClick={() => void readAll()} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-50">{busyAction === "all" ? "دەخوێنرێتەوە..." : "هەمووی بخوێنەوە"}</button>}
             </div>
           </div>
         </section>
@@ -115,7 +123,7 @@ export default function NotificationsPage() {
               <article key={row.id} className={`rounded-2xl border bg-white p-5 transition ${row.read_at ? 'border-slate-200' : 'border-orange-200 bg-orange-50/40 shadow-sm'}`}>
                 <div className="flex gap-4">
                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-sm font-black text-slate-700">{row.priority === 'urgent' ? '!' : '•'}</div>
-                  <button className="min-w-0 flex-1 text-right" onClick={() => void readOne(row)}>
+                  <button type="button" disabled={busyAction !== null} className="min-w-0 flex-1 text-right disabled:cursor-wait disabled:opacity-70" onClick={() => void readOne(row)}>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-sm font-black text-slate-950">{row.title_ckb}</h2>
                       <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">{labels[row.category]}</span>
