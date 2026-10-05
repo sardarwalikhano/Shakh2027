@@ -32,43 +32,34 @@ export default function MarketplacePage() {
   const [analyticsSessionId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    let cancelled = false;
-    if (!user) {
+    if (!user?.id) {
       setFavoriteIds(new Set());
       setFavoriteLoadError(null);
       return;
     }
-    setFavoriteLoadError(null);
-    listFavoriteIds()
-      .then((ids) => { if (!cancelled) setFavoriteIds(new Set(ids)); })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setFavoriteLoadError(error instanceof Error ? error.message : 'نەتوانرا دڵخوازەکان باربکرێن.');
-      });
-    return () => { cancelled = true; };
-  }, [user]);
 
-
-  useEffect(() => {
-    if (!user?.id) return;
     let cancelled = false;
     let timer: number | undefined;
 
+    const loadFavorites = () => {
+      void listFavoriteIds()
+        .then((ids) => {
+          if (!cancelled) {
+            setFavoriteIds(new Set(ids));
+            setFavoriteLoadError(null);
+          }
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) setFavoriteLoadError(error instanceof Error ? error.message : 'نەتوانرا دڵخوازەکان باربکرێن.');
+        });
+    };
+
     const refreshFavorites = () => {
       if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void listFavoriteIds()
-          .then((ids) => {
-            if (!cancelled) {
-              setFavoriteIds(new Set(ids));
-              setFavoriteLoadError(null);
-            }
-          })
-          .catch((error: unknown) => {
-            if (!cancelled) setFavoriteLoadError(error instanceof Error ? error.message : 'نەتوانرا دڵخوازەکان نوێ بکرێنەوە.');
-          });
-      }, 150);
+      timer = window.setTimeout(loadFavorites, 150);
     };
+
+    loadFavorites();
 
     const channel = supabase
       .channel(`marketplace-favorites:${user.id}`)
