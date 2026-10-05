@@ -1,4 +1,4 @@
-const CACHE = 'shakh-shell-v1';
+const CACHE = 'shakh-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/brand/shakh-logo.jpg', '/brand/shakh-icon-192.png', '/brand/shakh-icon-512.png', '/offline.html'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));

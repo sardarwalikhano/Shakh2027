@@ -17,8 +17,59 @@ function IntentTable({ items }: { items: PaymentIntent[] }) {
 }
 
 function CashTable({ items, canManage, onReconciled }: { items: CashCollection[]; canManage: boolean; onReconciled: (item: CashCollection) => void }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+
+  async function reconcile(item: CashCollection) {
+    setBusyId(item.id);
+    setActionError("");
+    try {
+      const next = await reconcileCashCollection(
+        item.id,
+        "reconciled",
+        item.deposit_reference ?? undefined,
+        "Reconciled from SHAKH Payments Center"
+      );
+      onReconciled(next);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "نەتوانرا cash collection reconcile بکرێت.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!items.length) return <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">هێشتا COD cash collection ـێک نییە.</div>;
-  return <div className="space-y-2">{items.map((item) => <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black text-slate-800">Order: {item.order_id.slice(0,8)}…</p><p className="mt-1 text-xs font-black text-orange-700">{money(Number(item.amount_iqd))} IQD</p><p className="mt-1 text-[10px] text-slate-400">{date(item.collected_at)}</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-500">{item.status}</span>{canManage && item.status !== 'reconciled' ? <button type="button" className="min-h-10 rounded-xl bg-slate-950 px-3 text-[10px] font-black text-white" onClick={async () => { const next = await reconcileCashCollection(item.id, 'reconciled', item.deposit_reference ?? undefined, 'Reconciled from SHAKH Payments Center'); onReconciled(next); }}>reconcile</button> : null}</div></article>)}</div>;
+
+  return (
+    <div className="space-y-3">
+      {actionError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{actionError}</div> : null}
+      {items.map((item) => {
+        const busy = busyId === item.id;
+        return (
+          <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black text-slate-800">Order: {item.order_id.slice(0, 8)}…</p>
+              <p className="mt-1 text-xs font-black text-orange-700">{money(Number(item.amount_iqd))} IQD</p>
+              <p className="mt-1 text-[10px] text-slate-400">{date(item.collected_at)}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-500">{item.status}</span>
+              {canManage && item.status !== "reconciled" ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="min-h-10 rounded-xl bg-slate-950 px-3 text-[10px] font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => void reconcile(item)}
+                >
+                  {busy ? "دەکۆڵێتەوە..." : "reconcile"}
+                </button>
+              ) : null}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function PaymentsPage() {

@@ -26,6 +26,7 @@ export default function MarketplacePage() {
   const [cartMessage, setCartMessage] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
+  const [favoriteLoadError, setFavoriteLoadError] = useState<string | null>(null);
   const { user } = useAuth();
   const [analyticsSessionId] = useState(() => crypto.randomUUID());
 
@@ -33,11 +34,16 @@ export default function MarketplacePage() {
     let cancelled = false;
     if (!user) {
       setFavoriteIds(new Set());
+      setFavoriteLoadError(null);
       return;
     }
+    setFavoriteLoadError(null);
     listFavoriteIds()
       .then((ids) => { if (!cancelled) setFavoriteIds(new Set(ids)); })
-      .catch(() => { if (!cancelled) setFavoriteIds(new Set()); });
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setFavoriteLoadError(error instanceof Error ? error.message : 'نەتوانرا دڵخوازەکان باربکرێن.');
+      });
     return () => { cancelled = true; };
   }, [user]);
 
@@ -210,6 +216,7 @@ export default function MarketplacePage() {
 
         {detailsLoading ? <div className="rounded-[24px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-500">وردەکاری بەرهەم بار دەکرێت...</div> : null}
         <ProductDetailPanel product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(variantId) => void addProductVariantToCart(variantId)} isFavorite={selectedProduct ? favoriteIds.has(selectedProduct.id) : false} onToggleFavorite={() => { if (selectedProduct) void toggleFavorite(selectedProduct.id); }} />
+        {favoriteLoadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{favoriteLoadError}</div> : null}
         {favoriteMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{favoriteMessage}</div> : null}
         {cartMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{cartMessage}</div> : null}
         <StorefrontPreview />
