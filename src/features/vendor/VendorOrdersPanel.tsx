@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import type { ManagedOrderSummary } from '../commerce/orderManagementApi';
 import { listVendorOrders, updateVendorOrderStatus } from './vendorApi';
 
@@ -36,7 +37,25 @@ export default function VendorOrdersPanel({ vendorId }: { vendorId: string }) {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { if (vendorId) void load(); }, [vendorId, status]);
+  useEffect(() => {
+    if (!vendorId) return;
+
+    void load();
+
+    const channel = supabase
+      .channel(`vendor-orders:${vendorId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `vendor_id=eq.${vendorId}` }, () => {
+        void load();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments' }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [vendorId, status]);
 
   async function change(orderId: string, nextStatus: 'confirmed' | 'processing' | 'ready_for_pickup' | 'cancelled') {
     setBusy(orderId); setError(null);
