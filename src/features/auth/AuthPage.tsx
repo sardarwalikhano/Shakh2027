@@ -30,6 +30,8 @@ function friendlyAuthError(error: unknown) {
   const message = error instanceof Error ? error.message : '';
   const normalized = message.toLowerCase();
 
+  if (normalized.includes('provider is not enabled') || normalized.includes('unsupported provider')) return 'چوونەژوورەوە بە Google لە Supabase چالاک نەکراوە یان ڕێکخستنی OAuth تەواو نییە.';
+  if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
   if (normalized.includes('invalid login credentials')) return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.';
   if (normalized.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە. تکایە پەیامی پشتڕاستکردنەوەکە بکەرەوە.';
   if (normalized.includes('after ') && normalized.includes(' seconds')) {
@@ -63,6 +65,13 @@ export default function AuthPage() {
   const passwordError = useMemo(() => validatePassword(password), [password]);
 
   useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const oauthError = hashParams.get('error_description') || hashParams.get('error');
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError.replace(/\+/g, ' ')));
+      window.history.replaceState({}, '', window.location.pathname + '?auth=google-error');
+    }
+
     const onLocationChange = () => setMode(resolveMode());
     window.addEventListener('hashchange', onLocationChange);
     window.addEventListener('popstate', onLocationChange);
