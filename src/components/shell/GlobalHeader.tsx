@@ -19,6 +19,8 @@ export default function GlobalHeader() {
   const mobileSearchRef = useRef<HTMLInputElement>(null);
   const { user, profile } = useAuth();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
 
   useEffect(() => {
     if (!user) { setUnreadNotifications(0); return; }
@@ -58,6 +60,19 @@ export default function GlobalHeader() {
     window.addEventListener("keydown", onGlobalKeyDown);
     return () => window.removeEventListener("keydown", onGlobalKeyDown);
   }, []);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setSignOutError("");
+    try {
+      await signOut();
+      window.location.hash = "#market";
+    } catch (error: unknown) {
+      setSignOutError(error instanceof Error ? error.message : "نەتوانرا لە هەژمار دەرچیت.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   const submitSearch = () => {
     const query = searchQuery.trim();
@@ -131,7 +146,7 @@ export default function GlobalHeader() {
                 <span className="hidden leading-tight lg:block"><span className="block text-[10px] font-semibold text-slate-400">بەخێربێیت</span><span className="block max-w-28 truncate text-xs font-bold text-slate-800">{profile?.full_name || user.email || "هەژمار"}</span></span>
               </a>
               <a href="#roles" className="hidden rounded-[10px] px-2 py-2 text-[10px] font-black text-slate-500 transition hover:bg-orange-50 hover:text-orange-700 lg:block">ڕۆڵەکان</a>
-              <button type="button" onClick={async () => { await signOut(); window.location.hash = "#market"; }} className="hidden text-[10px] font-black text-slate-400 transition hover:text-red-600 xl:block">دەرچوون</button>
+              <button type="button" disabled={signingOut} onClick={() => void handleSignOut()} className="hidden text-[10px] font-black text-slate-400 transition hover:text-red-600 disabled:cursor-wait disabled:opacity-50 xl:block">{signingOut ? "دەرچوون..." : "دەرچوون"}</button>
             </div>
           ) : (
             <a href="#auth/sign-in" className="hidden h-10 items-center gap-2 rounded-[13px] border border-slate-200 bg-white px-3 text-xs font-black text-slate-800 transition hover:border-orange-200 hover:bg-orange-50 sm:flex">
@@ -141,6 +156,10 @@ export default function GlobalHeader() {
           )}
         </div>
       </div>
+
+      {signOutError ? (
+        <div role="alert" className="border-t border-rose-200 bg-rose-50 px-4 py-2 text-center text-[11px] font-bold text-rose-800">{signOutError}</div>
+      ) : null}
 
       {searchOpen && (
         <div className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
