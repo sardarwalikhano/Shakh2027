@@ -396,6 +396,7 @@ function Notifications() {
   const { user } = useAuth();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -428,21 +429,29 @@ function Notifications() {
   }, [user]);
 
   async function read(id: string) {
+    if (busyAction) return;
+    setBusyAction("read:" + id);
     try {
       await markNotificationRead(id);
       setItems((current) => current.map((item) => item.id === id ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "نەتوانرا ئاگادارکردنەوەکە خوێندراوە نیشان بدرێت.");
+    } finally {
+      setBusyAction(null);
     }
   }
 
   async function readAll() {
+    if (busyAction) return;
+    setBusyAction("all");
     try {
       await markAllNotificationsRead();
       const now = new Date().toISOString();
       setItems((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "نەتوانرا هەموو ئاگادارکردنەوەکان خوێندراوە بکرێن.");
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -457,7 +466,7 @@ function Notifications() {
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeader eyebrow="NOTIFICATIONS" title="ئاگادارکردنەوەکان" body="Order updates، promotion alerts، support events و security notices لێرە لە Supabase ـەوە کۆدەکرێنەوە." />
-        {unread > 0 ? <button type="button" onClick={() => void readAll()} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:border-orange-200 hover:bg-orange-50">هەمووی خوێندراوە</button> : null}
+        {unread > 0 ? <button type="button" disabled={busyAction !== null} onClick={() => void readAll()} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:border-orange-200 hover:bg-orange-50 disabled:cursor-wait disabled:opacity-50">{busyAction === "all" ? "دەخوێنرێتەوە..." : "هەمووی خوێندراوە"}</button> : null}
       </div>
 
       {error ? <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{error}</div> : null}
@@ -473,6 +482,7 @@ function Notifications() {
             <button
               key={item.id}
               type="button"
+              disabled={busyAction !== null}
               onClick={() => void openNotification(item)}
               className={`w-full rounded-2xl border p-4 text-right transition hover:border-orange-200 hover:bg-orange-50/40 ${item.read_at ? "border-slate-100 bg-white" : "border-orange-100 bg-orange-50/25"}`}
             >
