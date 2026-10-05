@@ -100,6 +100,13 @@ const quickActionCandidates: QuickAction[] = [
     moduleLabels: ['Promotions'],
   },
   {
+    label: 'Posts Center',
+    description: 'ڕۆڵ، کاتەگۆری و وێنە',
+    href: '#posts',
+    permission: 'platform.manage',
+    moduleLabels: ['Posts'],
+  },
+  {
     label: 'Delivery Pricing',
     description: 'Zone و نرخ گەیاندن',
     href: '#delivery-pricing',
