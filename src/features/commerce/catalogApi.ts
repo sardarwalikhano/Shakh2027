@@ -215,6 +215,25 @@ export async function getMarketplaceProducts(filters: MarketplaceFilters): Promi
   return ((data ?? []) as unknown as ProductRow[]).map(toSummary);
 }
 
+export async function getProductDetailsBySlugOrId(slugOrId: string): Promise<ProductDetails> {
+  const value = slugOrId.trim();
+  if (!value) throw new Error('product_key_required');
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const column = uuidPattern.test(value) ? 'id' : 'slug';
+  const { data, error } = await supabase
+    .from('products')
+    .select('id')
+    .eq(column, value)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) throw new Error(`product_lookup_failed: ${error.message}`);
+  if (!data?.id) throw new Error('product_not_found');
+
+  return getProductDetails(data.id);
+}
+
 export async function getProductDetails(productId: string): Promise<ProductDetails> {
   const { data, error } = await supabase
     .from('products')

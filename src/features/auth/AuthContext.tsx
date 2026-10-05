@@ -175,6 +175,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refresh = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void loadIdentity(session?.user ?? null)
+          .then((identity) => {
+            if (cancelled) return;
+            setProfile(identity.profile);
+            setRoles(identity.roles);
+            setPermissions(identity.permissions);
+            setIdentityError(null);
+          })
+          .catch((error) => {
+            if (!cancelled) setIdentityError(formatIdentityError(error));
+          });
+      }, 200);
+    };
+
+    const channel = supabase
+      .channel(`auth-identity:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${userId}` }, refresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [session?.user.id]);
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,

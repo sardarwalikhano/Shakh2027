@@ -23,9 +23,14 @@ export default function GlobalHeader() {
   useEffect(() => {
     if (!user) { setUnreadNotifications(0); return; }
     let cancelled = false;
-    void getUnreadNotificationCount().then((count) => { if (!cancelled) setUnreadNotifications(count); });
+    void getUnreadNotificationCount()
+      .then((count) => { if (!cancelled) setUnreadNotifications(count); })
+      .catch(() => { if (!cancelled) setUnreadNotifications(0); });
+
     const channel = subscribeToNotifications(user.id, () => {
-      void getUnreadNotificationCount().then((count) => { if (!cancelled) setUnreadNotifications(count); });
+      void getUnreadNotificationCount()
+        .then((count) => { if (!cancelled) setUnreadNotifications(count); })
+        .catch(() => { if (!cancelled) setUnreadNotifications(0); });
     });
     return () => { cancelled = true; void channel.unsubscribe(); };
   }, [user]);
