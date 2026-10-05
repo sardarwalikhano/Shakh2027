@@ -78,7 +78,7 @@ export default function AuthPage() {
 
     try {
       if (mode === 'sign-in') {
-        if (passwordError) throw new Error(passwordError);
+        if (!email.trim() || !password) throw new Error('ئیمەیڵ و وشەی نهێنی پێویستن.');
         const { error: signInError } = await signInWithPassword(email, password);
         if (signInError) throw signInError;
         window.location.hash = '#market';
