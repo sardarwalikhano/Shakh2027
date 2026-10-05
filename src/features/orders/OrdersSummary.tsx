@@ -13,19 +13,27 @@ export default function OrdersSummary() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from('orders')
-      .select('id,order_number,status,total_iqd,created_at')
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data, error: queryError }) => {
-        if (cancelled) return;
-        if (queryError) setError(queryError.message);
+    setLoading(true);
+
+    const loadOrders = async () => {
+      const { data, error: queryError } = await supabase
+        .from('orders')
+        .select('id,order_number,status,total_iqd,created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (cancelled) return;
+      if (queryError) {
+        setError(queryError.message);
+        setOrders([]);
+      } else {
+        setError(null);
         setOrders((data ?? []) as typeof orders);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      }
+      setLoading(false);
+    };
+
+    void loadOrders();
     return () => { cancelled = true; };
   }, []);
 
