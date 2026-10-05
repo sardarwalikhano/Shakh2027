@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ShoppingBagIcon } from "../../../components/shell/icons";
 import { formatIqd, type CartItem } from "../models";
 import { removeCartItem, updateCartItem } from "../../commerce/cartApi";
@@ -17,19 +18,29 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
     );
   }
 
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
   const subtotal = items.reduce((sum, item) => sum + item.unitPriceIqd * item.quantity, 0);
   const changeQuantity = async (item: CartItem, quantity: number) => {
+    setBusyId(item.id);
+    setError("");
     try {
       if (quantity < 1) {
         await removeCartItem(item.id);
         onItemsChange(items.filter((entry) => entry.id !== item.id));
         return;
       }
-      if (item.availableQuantity !== undefined && quantity > item.availableQuantity) return;
+      if (item.availableQuantity !== undefined && quantity > item.availableQuantity) {
+        setError("ئەم بڕە لە stock ـی بەردەست زیاترە.");
+        return;
+      }
       await updateCartItem(item.id, quantity);
       onItemsChange(items.map((entry) => entry.id === item.id ? { ...entry, quantity } : entry));
-    } catch {
-      // The next load will reconcile the cart with Supabase if a concurrent inventory change occurs.
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "نەتوانرا سەبەت نوێ بکرێتەوە؛ تکایە دووبارە هەوڵ بدە.");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -39,6 +50,7 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
         <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-600">CART</p><h2 className="mt-1 text-xl font-black text-slate-950">بەرهەمە هەڵبژێردراوەکان</h2></div>
         <span className="text-xs font-black text-slate-400">{items.length} جۆر</span>
       </div>
+      {error ? <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{error}</div> : null}
       <div className="divide-y divide-slate-100">
         {items.map((item) => (
           <article key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
@@ -50,9 +62,9 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <span className="text-sm font-black text-orange-600">{formatIqd(item.unitPriceIqd)}</span>
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                  <button type="button" className="grid h-7 w-7 place-items-center rounded-lg bg-white text-sm font-black text-slate-700" onClick={() => void changeQuantity(item, item.quantity - 1)} aria-label="کەمکردنەوەی بڕ">−</button>
-                  <span className="min-w-7 text-center text-xs font-black text-slate-700">{item.quantity}</span>
-                  <button type="button" className="grid h-7 w-7 place-items-center rounded-lg bg-white text-sm font-black text-slate-700 disabled:opacity-30" onClick={() => void changeQuantity(item, item.quantity + 1)} disabled={item.availableQuantity !== undefined && item.quantity >= item.availableQuantity} aria-label="زیادکردنی بڕ">+</button>
+                  <button type="button" disabled={busyId === item.id} className="grid h-7 w-7 place-items-center rounded-lg bg-white text-sm font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-30" onClick={() => void changeQuantity(item, item.quantity - 1)} aria-label="کەمکردنەوەی بڕ">−</button>
+                  <span className="min-w-7 text-center text-xs font-black text-slate-700">{busyId === item.id ? "…" : item.quantity}</span>
+                  <button type="button" disabled={busyId === item.id || (item.availableQuantity !== undefined && item.quantity >= item.availableQuantity)} className="grid h-7 w-7 place-items-center rounded-lg bg-white text-sm font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-30" onClick={() => void changeQuantity(item, item.quantity + 1)} aria-label="زیادکردنی بڕ">+</button>
                 </div>
               </div>
             </div>
