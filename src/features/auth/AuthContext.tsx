@@ -21,6 +21,7 @@ type AuthContextValue = {
   roles: string[];
   permissions: string[];
   loading: boolean;
+  identityError: string | null;
   hasRole: (roles: string | string[]) => boolean;
   hasPermission: (permission: string) => boolean;
   refreshIdentity: () => Promise<void>;
@@ -54,6 +55,11 @@ async function loadIdentity(user: User | null) {
   };
 }
 
+function formatIdentityError(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : '';
+  return message || 'بارکردنی زانیاری هەژمار و دەسەڵاتەکان سەرکەوتوو نەبوو.';
+}
+
 function syncRecoveryRoute() {
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
   if (hashParams.get('type') !== 'recovery') return;
@@ -70,12 +76,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [identityError, setIdentityError] = useState<string | null>(null);
 
   const refreshIdentity = async () => {
-    const result = await loadIdentity(session?.user ?? null);
-    setProfile(result.profile);
-    setRoles(result.roles);
-    setPermissions(result.permissions);
+    setIdentityError(null);
+    try {
+      const result = await loadIdentity(session?.user ?? null);
+      setProfile(result.profile);
+      setRoles(result.roles);
+      setPermissions(result.permissions);
+    } catch (error) {
+      const message = formatIdentityError(error);
+      setIdentityError(message);
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -86,22 +100,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       if (!mounted) return;
+
       setSession(data.session);
-      const identity = await loadIdentity(data.session?.user ?? null);
-      if (!mounted) return;
-      setProfile(identity.profile);
-      setRoles(identity.roles);
-      setPermissions(identity.permissions);
-      setLoading(false);
+      setIdentityError(null);
+
+      try {
+        const identity = await loadIdentity(data.session?.user ?? null);
+        if (!mounted) return;
+        setProfile(identity.profile);
+        setRoles(identity.roles);
+        setPermissions(identity.permissions);
+      } catch (error) {
+        if (!mounted) return;
+        setProfile(null);
+        setRoles([]);
+        setPermissions([]);
+        setIdentityError(formatIdentityError(error));
+      }
+
+      if (mounted) setLoading(false);
     };
 
-    bootstrap().catch(() => {
-      if (mounted) setLoading(false);
+    bootstrap().catch((error) => {
+      if (!mounted) return;
+      setIdentityError(formatIdentityError(error));
+      setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
+
       setSession(nextSession);
+      if (!nextSession) {
+        setProfile(null);
+        setRoles([]);
+        setPermissions([]);
+        setIdentityError(null);
+        setLoading(false);
+        return;
+      }
+
+      setIdentityError(null);
+
       if (event === 'PASSWORD_RECOVERY') {
         window.setTimeout(() => {
           if (!mounted) return;
@@ -111,14 +151,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.history.replaceState({}, '', nextUrl.toString());
         }, 0);
       }
+
       window.setTimeout(async () => {
         if (!mounted) return;
         try {
-          const identity = await loadIdentity(nextSession?.user ?? null);
+          const identity = await loadIdentity(nextSession.user);
           if (!mounted) return;
           setProfile(identity.profile);
           setRoles(identity.roles);
           setPermissions(identity.permissions);
+        } catch (error) {
+          if (!mounted) return;
+          setIdentityError(formatIdentityError(error));
         } finally {
           if (mounted) setLoading(false);
         }
@@ -138,13 +182,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     permissions,
     loading,
+    identityError,
     hasRole: (required) => {
       const values = Array.isArray(required) ? required : [required];
       return values.some((role) => roles.includes(role));
     },
     hasPermission: (permission) => permissions.includes(permission),
     refreshIdentity,
-  }), [session, profile, roles, permissions, loading]);
+  }), [session, profile, roles, permissions, loading, identityError]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
