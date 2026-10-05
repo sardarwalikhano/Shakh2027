@@ -5,13 +5,13 @@ const env = import.meta.env as ImportMetaEnv & {
   VITE_PUBLIC_SITE_URL?: string;
 };
 
-function authRedirectUrl(flow: 'email-confirmation' | 'password-recovery') {
+function authRedirectUrl(flow: 'email-confirmation' | 'password-recovery' | 'google') {
   const configuredSiteUrl = env.VITE_PUBLIC_SITE_URL?.trim();
   const baseUrl = configuredSiteUrl || window.location.origin;
   const url = new URL(window.location.pathname || '/', baseUrl);
   url.search = '';
   url.hash = '';
-  url.searchParams.set('auth', flow);
+  if (flow !== 'google') url.searchParams.set('auth', flow);
   return url.toString();
 }
 
@@ -19,6 +19,19 @@ export async function signInWithPassword(email: string, password: string): Promi
   return supabase.auth.signInWithPassword({
     email: email.trim().toLowerCase(),
     password,
+  });
+}
+
+export async function signInWithGoogle() {
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: authRedirectUrl('google'),
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+      },
+    },
   });
 }
 
