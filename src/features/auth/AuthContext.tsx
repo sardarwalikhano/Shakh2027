@@ -60,15 +60,20 @@ function formatIdentityError(error: unknown) {
   return message || 'بارکردنی زانیاری هەژمار و دەسەڵاتەکان سەرکەوتوو نەبوو.';
 }
 
+function syncAuthFlowRoute(flow: 'email-confirmation' | 'password-recovery') {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set('auth', flow);
+  nextUrl.hash = flow === 'password-recovery' ? '#auth/reset-password' : '#auth/email-confirmation';
+  window.history.replaceState({}, '', nextUrl.toString());
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 function syncRecoveryRoute() {
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
   if (hashParams.get('type') !== 'recovery') return;
-
-  const nextUrl = new URL(window.location.href);
-  nextUrl.searchParams.set('auth', 'password-recovery');
-  nextUrl.hash = '';
-  window.history.replaceState({}, '', nextUrl.toString());
+  syncAuthFlowRoute('password-recovery');
 }
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -145,10 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'PASSWORD_RECOVERY') {
         window.setTimeout(() => {
           if (!mounted) return;
-          const nextUrl = new URL(window.location.href);
-          nextUrl.searchParams.set('auth', 'password-recovery');
-          nextUrl.hash = '';
-          window.history.replaceState({}, '', nextUrl.toString());
+          syncAuthFlowRoute('password-recovery');
         }, 0);
       }
 
