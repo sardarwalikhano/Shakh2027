@@ -6,7 +6,7 @@ import MarketplaceToolbar from './components/MarketplaceToolbar';
 import ProductGrid from './components/ProductGrid';
 import ProductDetailPanel from './components/ProductDetailPanel';
 import StorefrontPreview from './components/StorefrontPreview';
-import { getActiveCategories, getMarketplaceProducts, getProductDetails, type CatalogCategory } from '../commerce/catalogApi';
+import { getActiveCategories, getMarketplaceProducts, getProductDetails, getProductDetailsBySlugOrId, type CatalogCategory } from '../commerce/catalogApi';
 import { addVariantToCart } from '../commerce/cartApi';
 import { useAuth } from '../auth/AuthContext';
 import { recordAnalyticsEvent } from '../commerce/analyticsApi';
@@ -145,6 +145,51 @@ export default function MarketplacePage() {
     }
   }
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncProductFromHash = () => {
+      const rawHash = window.location.hash.slice(1);
+      const match = rawHash.match(/^marketplace\/product\/([^?/#]+)$/);
+      if (!match) return;
+
+      const key = decodeURIComponent(match[1]);
+      setDetailsLoading(true);
+      setErrorMessage(null);
+
+      void getProductDetailsBySlugOrId(key)
+        .then((details) => {
+          if (cancelled) return;
+          setSelectedProduct(details);
+          void recordAnalyticsEvent({
+            eventName: "product_view",
+            entityType: "product",
+            entityId: details.id,
+            sessionId: analyticsSessionId,
+            properties: { product_slug: details.slug, source: "deep_link" },
+          }).catch(() => undefined);
+          setPageSeo({
+            title: details.seoTitle || `${details.title} | SHAKH`,
+            description: details.seoDescription || details.description || "SHAKH marketplace",
+            canonicalPath: `#marketplace/product/${details.slug || details.id}`,
+          });
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) setErrorMessage(error instanceof Error ? error.message : 'نەتوانرا product detail لە link ـەکەوە باربکرێت.');
+        })
+        .finally(() => {
+          if (!cancelled) setDetailsLoading(false);
+        });
+    };
+
+    syncProductFromHash();
+    window.addEventListener('hashchange', syncProductFromHash);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hashchange', syncProductFromHash);
+    };
+  }, [analyticsSessionId]);
+
   async function openProduct(product: ProductSummary) {
     setDetailsLoading(true);
     setErrorMessage(null);
@@ -215,7 +260,7 @@ export default function MarketplacePage() {
         </section>
 
         {detailsLoading ? <div className="rounded-[24px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-500">وردەکاری بەرهەم بار دەکرێت...</div> : null}
-        <ProductDetailPanel product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(variantId) => void addProductVariantToCart(variantId)} isFavorite={selectedProduct ? favoriteIds.has(selectedProduct.id) : false} onToggleFavorite={() => { if (selectedProduct) void toggleFavorite(selectedProduct.id); }} />
+        <ProductDetailPanel product={selectedProduct} onClose={() => { setSelectedProduct(null); window.location.hash = "#marketplace"; }} onAddToCart={(variantId) => void addProductVariantToCart(variantId)} isFavorite={selectedProduct ? favoriteIds.has(selectedProduct.id) : false} onToggleFavorite={() => { if (selectedProduct) void toggleFavorite(selectedProduct.id); }} />
         {favoriteLoadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{favoriteLoadError}</div> : null}
         {favoriteMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{favoriteMessage}</div> : null}
         {cartMessage ? <div role="status" className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">{cartMessage}</div> : null}
