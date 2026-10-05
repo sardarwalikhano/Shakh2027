@@ -40,6 +40,86 @@ const dashboardModuleAnchors: Record<string, string> = {
   Orders: "dashboard-orders",
 };
 
+type QuickAction = {
+  label: string;
+  description: string;
+  href: string;
+  permission?: string;
+  moduleLabels: string[];
+};
+
+const quickActionCandidates: QuickAction[] = [
+  {
+    label: 'Dispatch / Delivery',
+    description: 'assignment و live monitor',
+    href: '#delivery',
+    permission: 'delivery.manage',
+    moduleLabels: ['Delivery', 'Available Orders', 'My Deliveries', 'Captains', 'Assignments', 'Live Monitor', 'Performance'],
+  },
+  {
+    label: 'Payments Center',
+    description: 'payment + cash reconciliation',
+    href: '#payments',
+    permission: 'payments.read',
+    moduleLabels: ['Payments'],
+  },
+  {
+    label: 'Finance Center',
+    description: 'دارایی و تراکنشەکان',
+    href: '#finance',
+    permission: 'finance.read',
+    moduleLabels: ['Finance', 'Earnings'],
+  },
+  {
+    label: 'Support Queue',
+    description: 'ticket و escalation',
+    href: '#support',
+    permission: 'support.read',
+    moduleLabels: ['Support', 'Queue', 'Customers', 'Escalations', 'Knowledge'],
+  },
+  {
+    label: 'Vendor Center',
+    description: 'بەرهەم، کاتەلۆگ و ستۆر',
+    href: '#vendor',
+    permission: 'catalog.manage',
+    moduleLabels: ['Vendors', 'Products', 'Catalog', 'Store'],
+  },
+  {
+    label: 'Analytics',
+    description: 'conversion و KPI ـەکان',
+    href: '#analytics',
+    permission: 'analytics.read',
+    moduleLabels: ['Analytics', 'Performance'],
+  },
+  {
+    label: 'Promotions',
+    description: 'coupon و داشکاندن',
+    href: '#promotions',
+    permission: 'promotions.manage',
+    moduleLabels: ['Promotions'],
+  },
+  {
+    label: 'Delivery Pricing',
+    description: 'Zone و نرخ گەیاندن',
+    href: '#delivery-pricing',
+    permission: 'delivery.manage',
+    moduleLabels: ['Delivery Pricing'],
+  },
+  {
+    label: 'Account',
+    description: 'پڕۆفایل و هەژمار',
+    href: '#account',
+    moduleLabels: ['Profile'],
+  },
+  {
+    label: 'Audit Console',
+    description: 'immutable operational trail',
+    href: '#audit',
+    permission: 'platform.manage',
+    moduleLabels: ['Audit Logs'],
+  },
+];
+
 function statusLabel(value: string) {
   const map: Record<string,string> = {
     pending_payment:'چاوەڕوانی پارەدان', placed:'دانراو', confirmed:'پشتڕاستکراو', processing:'لە پرۆسە', ready_for_pickup:'ئامادەی وەرگرتن', out_for_delivery:'لە ڕێگایە', delivered:'گەیشتوو', cancelled:'هەڵوەشاوە', refunded:'گەڕێندرایەوە', paid:'پارەدراو', failed:'شکست', pending:'چاوەڕوان', requires_action:'کردار پێویستە'
@@ -145,6 +225,15 @@ export default function DashboardPage() {
 
   const canAudit = hasPermission('platform.manage');
   const metrics = snapshot?.metrics;
+  const quickActions = useMemo(
+    () => quickActionCandidates.filter((action) => {
+      const moduleAvailable = action.moduleLabels.some((label) => modules.some((module) => module.label === label));
+      const permissionGranted = !action.permission || hasPermission(action.permission);
+      return moduleAvailable && permissionGranted;
+    }),
+    [hasPermission, modules]
+  );
+
   if (loading && !snapshot) return <AppShell><LoadingState label="Operations Center بار دەکرێت..." /></AppShell>;
 
   return <AppShell><main dir="rtl" className="space-y-5">
@@ -169,7 +258,7 @@ export default function DashboardPage() {
           ].filter(Boolean) as Array<{ label: string; value: string; detail: string; tone: 'neutral' | 'accent' | 'dark' }>;
           return <div id="dashboard-metrics" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{candidates.slice(0, 8).map((item) => <Stat key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />)}</div>;
         })()}
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><div id="dashboard-orders"><OrdersTable items={snapshot?.recent_orders ?? []} /></div><section className="dashboard-side-panel"><p className="dashboard-eyebrow !text-orange-600">QUICK ACTIONS</p><h3 className="mt-2 text-xl font-black text-slate-950">کارە گرنگەکان</h3><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><a href="#delivery" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Dispatch / Delivery</b><span className="mt-1 block text-[10px] text-slate-400">assignment و live monitor</span></a><a href="#payments" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Payments Center</b><span className="mt-1 block text-[10px] text-slate-400">payment + cash reconciliation</span></a><a href="#support" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Support Queue</b><span className="mt-1 block text-[10px] text-slate-400">ticket و escalation</span></a>{canAudit && <a href="#audit" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Audit Console</b><span className="mt-1 block text-[10px] text-slate-400">immutable operational trail</span></a>}</div></section></div>
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><div id="dashboard-orders"><OrdersTable items={snapshot?.recent_orders ?? []} /></div><section className="dashboard-side-panel"><div className="flex items-start justify-between gap-3"><div><p className="dashboard-eyebrow !text-orange-600">QUICK ACTIONS</p><h3 className="mt-2 text-xl font-black text-slate-950">کارە گرنگەکان</h3><p className="mt-1 text-[10px] text-slate-400">تەنها ئەو action ـانەی پیشان دەدرێن کە ئەم role ـە بۆیان دسترسی هەیە.</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black text-slate-500">{quickActions.length}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">{quickActions.map((action)=><a key={action.href} href={action.href} className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">{action.label}</b><span className="mt-1 block text-[10px] text-slate-400">{action.description}</span></a>)}{!quickActions.length && <p className="rounded-2xl border border-dashed border-slate-200 p-4 text-xs font-bold text-slate-500">هیچ quick action ـێکی بۆ ئەم role ـە لەبەر permission ـەکان بەردەست نییە.</p>}</div></section></div>
         {snapshot && snapshot.recent_events.length>0 && <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)]"><div className="flex items-end justify-between"><div><p className="dashboard-eyebrow !text-orange-600">ACTIVITY</p><h3 className="mt-1 text-lg font-black">Event stream</h3></div><a href="#events" className="shakh-ghost-btn">هەموو</a></div><div className="mt-4 space-y-2">{snapshot.recent_events.map((event)=><div key={event.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3"><span className={`h-2 w-2 rounded-full ${event.severity==='error'?'bg-red-500':event.severity==='warning'?'bg-amber-500':event.severity==='success'?'bg-emerald-500':'bg-slate-400'}`} /><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-slate-800">{event.title_ckb}</p><p className="mt-1 text-[10px] text-slate-400">{event.event_type} • {time(event.created_at)}</p></div><span className="font-mono text-[9px] text-slate-400">{event.entity_type ?? 'event'}</span></div>)}</div></section>}
         {snapshot && snapshot.support_queue.length>0 && <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)]"><div className="flex items-end justify-between"><div><p className="dashboard-eyebrow !text-orange-600">SUPPORT</p><h3 className="mt-1 text-lg font-black">Queue ـی پشتیوانی</h3></div><a href="#support" className="shakh-ghost-btn">پشتیوانی</a></div><div className="mt-4 grid gap-2">{snapshot.support_queue.map((ticket)=><div key={ticket.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3"><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-slate-800">{ticket.ticket_number} — {ticket.subject}</p><p className="mt-1 text-[10px] text-slate-400">{ticket.status}</p></div><span className={`rounded-full px-2.5 py-1 text-[9px] font-black ${ticket.priority==='urgent'?'bg-red-50 text-red-700':ticket.priority==='high'?'bg-amber-50 text-amber-700':'bg-slate-100 text-slate-500'}`}>{ticket.priority}</span></div>)}</div></section>}
       </div>
