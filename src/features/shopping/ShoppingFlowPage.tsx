@@ -187,10 +187,40 @@ export default function ShoppingFlowPage() {
 
   useEffect(() => {
     if (!user?.id) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refreshCart = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void getMyCart()
+          .then((next) => {
+            if (!cancelled) setCartItems(next);
+          })
+          .catch((error: unknown) => {
+            if (!cancelled) setErrorMessage(error instanceof Error ? error.message : "نەتوانرا سەبەت نوێ بکرێتەوە.");
+          });
+      }, 200);
+    };
+
+    const channel = supabase
+      .channel(`shopping-cart:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cart_items', filter: `user_id=eq.${user.id}` }, refreshCart)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
     const channel = subscribeToPaymentIntents(user.id, (intent) => {
       setPaymentResult((current) => current ? { ...current, status: intent.status, payment_intent_id: intent.id } : current);
     });
-    return () => { supabase.removeChannel(channel); };
+    return () => { void supabase.removeChannel(channel); };
   }, [user?.id]);
 
   return (
