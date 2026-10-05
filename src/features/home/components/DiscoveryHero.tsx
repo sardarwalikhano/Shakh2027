@@ -1,4 +1,4 @@
-import { MapPinIcon, SearchIcon, ShoppingBagIcon } from "../../../components/shell/icons";
+import { MapPinIcon, SearchIcon } from "../../../components/shell/icons";
 
 export default function DiscoveryHero() {
   return (
@@ -20,13 +20,13 @@ export default function DiscoveryHero() {
             </p>
           </div>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <button className="shakh-btn-primary" type="button">
+            <a className="shakh-btn-primary inline-flex items-center" href="#marketplace">
               <SearchIcon className="mr-2 h-4 w-4" />
               دەست بکە بە گەڕان
-            </button>
-            <button className="shakh-btn-dark" type="button">
+            </a>
+            <a className="shakh-btn-dark inline-flex items-center" href="#offers">
               پێشنیارەکان ببینە
-            </button>
+            </a>
           </div>
         </div>
       </article>
@@ -51,10 +51,10 @@ export default function DiscoveryHero() {
             </span>
           </div>
         </div>
-        <button type="button" className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-800 transition hover:border-orange-200 hover:bg-orange-50">
+        <a href="#account/profile" className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-800 transition hover:border-orange-200 hover:bg-orange-50">
           <span>ناونیشانی گەیاندن هەڵبژێرە</span>
-          <span className="text-orange-600">←</span>
-        </button>
+          <span className="text-orange-600" aria-hidden="true">←</span>
+        </a>
       </aside>
     </section>
   );
