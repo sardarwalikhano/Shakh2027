@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const defaultRole = dashboardRoleFromActualRoles(roles);
   const initialRole = availableRoles.includes(requestedRole) ? requestedRole : defaultRole;
   const [role, setRole] = useState<DashboardRole>(initialRole);
+  const modules = ROLE_MODULES[role];
   const [activeModule, setActiveModule] = useState("Overview");
   const [snapshot, setSnapshot] = useState<OperationsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,7 +143,6 @@ export default function DashboardPage() {
 
   useEffect(() => { let cancelled=false; setLoading(true); void getOperationsSnapshot().then((data)=>{ if(!cancelled) setSnapshot(data); }).catch((err)=>{ if(!cancelled) setError(err instanceof Error ? err.message : 'operations_snapshot_load_failed'); }).finally(()=>{ if(!cancelled) setLoading(false); }); return ()=>{cancelled=true;}; }, [roles.join('|')]);
 
-  const modules = ROLE_MODULES[role];
   const canAudit = hasPermission('platform.manage');
   const metrics = snapshot?.metrics;
   if (loading && !snapshot) return <AppShell><LoadingState label="Operations Center بار دەکرێت..." /></AppShell>;
