@@ -430,6 +430,7 @@ function TrackingConsole({ orderId }: { orderId: string }) {
     const channel = supabase
       .channel(`delivery-tracking:${orderId}`, { config: { private: true } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments', filter: `order_id=eq.${orderId}` }, () => { void load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, () => { void load(); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'captain_live_locations', filter: `assignment_id=eq.${tracking?.assignment_id ?? '00000000-0000-0000-0000-000000000000'}` }, (payload) => {
         const row = payload.new as { assignment_id?: string; latitude?: number; longitude?: number; heading?: number | null; speed_kmh?: number | null; accuracy_m?: number | null; recorded_at?: string };
         if (row.assignment_id === tracking?.assignment_id && typeof row.latitude === 'number' && typeof row.longitude === 'number') {
@@ -442,7 +443,7 @@ function TrackingConsole({ orderId }: { orderId: string }) {
   return (
     <main className="delivery-page">
       <section className="delivery-hero tracking-hero"><div><span className="delivery-eyebrow">LIVE DELIVERY</span><h1>شوێنی ئۆردەر بە زیندوویی</h1><p>دۆخی گەیاندن و شوێنی کاپتن لە داتای ڕاستەقینەی Supabase ـەوە نوێ دەکرێتەوە.</p></div><button className="delivery-secondary-btn light" onClick={() => void load()}>نوێکردنەوە</button></section>
-      {error && <div className="delivery-alert">{error}</div>}
+      {error && <div className="delivery-alert" role="alert">{error}</div>}
       {tracking && <div className="delivery-grid-two"><div className="delivery-card"><div className="delivery-card-head"><div><span className="delivery-kicker">ORDER TRACKING</span><h2>#{orderId.slice(0, 8)}</h2></div><StatusPill status={tracking.status} /></div><TrackingMap captain={tracking.location} pickup={tracking.pickup} dropoff={tracking.dropoff}/></div><div className="delivery-card"><span className="delivery-kicker">CAPTAIN</span><h2>{tracking.captain?.captain_code ?? 'لە چاوەڕوانیدا'}</h2><p className="delivery-muted">{tracking.captain ? `${tracking.captain.vehicle_make ?? ''} ${tracking.captain.vehicle_model ?? ''}` : 'کاپتن هێشتا دیاری نەکراوە.'}</p><div className="delivery-mini-metrics"><div><span>ETA</span><strong>{tracking.estimated_minutes ?? '—'} min</strong></div><div><span>Location</span><strong>{tracking.location ? 'LIVE' : 'Waiting'}</strong></div></div>{tracking.location && <p className="delivery-coordinates">{tracking.location.latitude.toFixed(5)}, {tracking.location.longitude.toFixed(5)}</p>}</div></div>}
       {!tracking && !error && <div className="delivery-card"><div className="delivery-empty">شوێنی گەیاندن هێشتا بەردەست نییە.</div></div>}
     </main>
