@@ -51,6 +51,25 @@ export default function MarketplacePage() {
   }, [filters.query]);
 
   useEffect(() => {
+    const syncCategoryFromHash = () => {
+      const route = window.location.hash.slice(1).split('?')[0].split('/')[0];
+      if (route === 'market' || route === 'marketplace' || !route) {
+        setFilters((current) => current.categoryId === null ? current : { ...current, categoryId: null });
+        return;
+      }
+
+      const category = categories.find((item) => item.slug === route);
+      if (category) {
+        setFilters((current) => current.categoryId === category.id ? current : { ...current, categoryId: category.id });
+      }
+    };
+
+    syncCategoryFromHash();
+    window.addEventListener('hashchange', syncCategoryFromHash);
+    return () => window.removeEventListener('hashchange', syncCategoryFromHash);
+  }, [categories]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErrorMessage(null);
