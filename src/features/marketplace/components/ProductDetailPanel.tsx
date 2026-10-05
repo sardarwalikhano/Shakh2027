@@ -128,7 +128,12 @@ export default function ProductDetailPanel({
                   <p className="text-sm font-black text-slate-950">{product.seller.name}</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">{product.seller.responseRate ? `${product.seller.responseRate}% وەڵامدانەوە` : 'فرۆشیارێکی پشتپێبەستراو'}</p>
                 </div>
-                <button type="button" className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white">بینینی فرۆشگا</button>
+                <a
+                  href={`#marketplace?q=${encodeURIComponent(product.seller.name)}`}
+                  className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white no-underline transition hover:bg-slate-800"
+                >
+                  بینینی فرۆشگا
+                </a>
               </div>
             </div>
           ) : null}
