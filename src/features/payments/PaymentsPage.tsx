@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/shell/AppShell';
 import { InlineError, LoadingState, SuccessNotice } from '../../components/ux/UiStates';
 import { useAuth } from '../auth/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { getCashCollections, getMyPaymentIntents, reconcileCashCollection, type CashCollection, type PaymentIntent } from '../commerce/paymentApi';
 
 const money = (value: number) => new Intl.NumberFormat('ku-IQ', { maximumFractionDigits: 0 }).format(value);
@@ -90,6 +91,39 @@ export default function PaymentsPage() {
     finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refresh = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void Promise.all([getMyPaymentIntents(), getCashCollections()])
+          .then(([paymentData, cashData]) => {
+            if (cancelled) return;
+            setIntents(paymentData);
+            setCash(cashData);
+            setError('');
+          })
+          .catch((err: unknown) => {
+            if (!cancelled) setError(err instanceof Error ? err.message : 'payments_load_failed');
+          });
+      }, 200);
+    };
+
+    const channel = supabase
+      .channel('payments-center-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_intents' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_collections' }, refresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   const totals = useMemo(() => intents.reduce((acc, item) => { if (item.status === 'succeeded') acc.paid += Number(item.amount_iqd); if (item.status === 'pending' || item.status === 'requires_action') acc.pending += Number(item.amount_iqd); return acc; }, { paid: 0, pending: 0 }), [intents]);
 
