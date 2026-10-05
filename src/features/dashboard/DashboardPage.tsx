@@ -27,6 +27,19 @@ function RoleSwitcher({ role, roles }: { role: DashboardRole; roles: DashboardRo
   </div>;
 }
 
+function resolveDashboardModule(modules: Array<{ label: string }>) {
+  const parts = window.location.hash.split("/");
+  const slug = parts[1] === "dashboard" ? parts[3] : undefined;
+  if (!slug) return "Overview";
+  return modules.find((module) => module.label.toLowerCase().replaceAll(" ", "-") === slug)?.label ?? "Overview";
+}
+
+const dashboardModuleAnchors: Record<string, string> = {
+  Overview: "dashboard-overview",
+  Users: "dashboard-metrics",
+  Orders: "dashboard-orders",
+};
+
 function statusLabel(value: string) {
   const map: Record<string,string> = {
     pending_payment:'چاوەڕوانی پارەدان', placed:'دانراو', confirmed:'پشتڕاستکراو', processing:'لە پرۆسە', ready_for_pickup:'ئامادەی وەرگرتن', out_for_delivery:'لە ڕێگایە', delivered:'گەیشتوو', cancelled:'هەڵوەشاوە', refunded:'گەڕێندرایەوە', paid:'پارەدراو', failed:'شکست', pending:'چاوەڕوان', requires_action:'کردار پێویستە'
@@ -100,11 +113,33 @@ export default function DashboardPage() {
   const defaultRole = dashboardRoleFromActualRoles(roles);
   const initialRole = availableRoles.includes(requestedRole) ? requestedRole : defaultRole;
   const [role, setRole] = useState<DashboardRole>(initialRole);
+  const [activeModule, setActiveModule] = useState("Overview");
   const [snapshot, setSnapshot] = useState<OperationsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => { const onHashChange = () => setRole((current) => { const next = resolveDashboardRole(); return availableRoles.includes(next) ? next : current; }); window.addEventListener('hashchange', onHashChange); return () => window.removeEventListener('hashchange', onHashChange); }, [availableRoles]);
+  useEffect(() => {
+    const syncDashboardHash = () => setRole((current) => {
+      const next = resolveDashboardRole();
+      return availableRoles.includes(next) ? next : current;
+    });
+    window.addEventListener("hashchange", syncDashboardHash);
+    return () => window.removeEventListener("hashchange", syncDashboardHash);
+  }, [availableRoles]);
+
+  useEffect(() => {
+    setActiveModule(resolveDashboardModule(modules));
+    const syncModule = () => setActiveModule(resolveDashboardModule(modules));
+    window.addEventListener("hashchange", syncModule);
+    return () => window.removeEventListener("hashchange", syncModule);
+  }, [modules]);
+
+  useEffect(() => {
+    const anchor = dashboardModuleAnchors[activeModule];
+    if (!anchor) return;
+    window.setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, [activeModule]);
+
   useEffect(() => { let cancelled=false; setLoading(true); void getOperationsSnapshot().then((data)=>{ if(!cancelled) setSnapshot(data); }).catch((err)=>{ if(!cancelled) setError(err instanceof Error ? err.message : 'operations_snapshot_load_failed'); }).finally(()=>{ if(!cancelled) setLoading(false); }); return ()=>{cancelled=true;}; }, [roles.join('|')]);
 
   const modules = ROLE_MODULES[role];
@@ -114,9 +149,9 @@ export default function DashboardPage() {
 
   return <AppShell><main dir="rtl" className="space-y-5">
     <div className="grid gap-5 lg:grid-cols-[244px_minmax(0,1fr)]">
-      <DashboardSidebar modules={modules} active="Overview" />
-      <div className="space-y-5 min-w-0">
-        <section className="dashboard-hero"><div className="dashboard-hero-grid" /><div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><div className="flex items-center gap-2"><span className="dashboard-live-dot" /><p className="dashboard-eyebrow">LIVE OPERATIONS</p></div><h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">ناوەندی بەڕێوەبردنی SHAKH</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">KPI و queue ـەکان ڕاستەوخۆ لە Supabase ـەوە دێن؛ هیچ mock record ـێکی dashboard ـدا نییە.</p></div><div className="rounded-2xl border border-white/10 bg-white/6 p-4"><p className="text-[9px] font-black tracking-[0.16em] text-white/40">ROLE</p><p className="mt-2 text-sm font-black text-white">{DASHBOARD_ROLES[role].labelEn}</p><p className="mt-1 text-[10px] text-white/45">{snapshot ? `نوێکراوەتەوە ${time(snapshot.generated_at)}` : '—'}</p></div></div></section>
+      <DashboardSidebar modules={modules} active={activeModule} role={role} />
+      <div className="space-y-5 min-w-0" id="dashboard-content">
+        <section id="dashboard-overview" className="dashboard-hero"><div className="dashboard-hero-grid" /><div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><div className="flex items-center gap-2"><span className="dashboard-live-dot" /><p className="dashboard-eyebrow">LIVE OPERATIONS</p></div><h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">ناوەندی بەڕێوەبردنی SHAKH</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">KPI و queue ـەکان ڕاستەوخۆ لە Supabase ـەوە دێن؛ هیچ mock record ـێکی dashboard ـدا نییە.</p></div><div className="rounded-2xl border border-white/10 bg-white/6 p-4"><p className="text-[9px] font-black tracking-[0.16em] text-white/40">ROLE</p><p className="mt-2 text-sm font-black text-white">{DASHBOARD_ROLES[role].labelEn}</p><p className="mt-1 text-[10px] text-white/45">{snapshot ? `نوێکراوەتەوە ${time(snapshot.generated_at)}` : '—'}</p></div></div></section>
         <RoleSwitcher role={role} roles={availableRoles} />
         {error && <InlineError title="Operations بار نەکرا" body={error} />}
         {metrics && (() => {
@@ -132,9 +167,9 @@ export default function DashboardPage() {
             hasPermission('support.read') && { label: 'Support backlog', value: number(metrics.support_open), detail: metrics.support_urgent == null ? 'open queue' : `${number(metrics.support_urgent)} urgent`, tone: 'accent' as const },
             hasPermission('finance.read') && { label: 'Withdrawal ـی چاوەڕوان', value: number(metrics.pending_withdrawals), detail: 'requested / approved', tone: 'neutral' as const },
           ].filter(Boolean) as Array<{ label: string; value: string; detail: string; tone: 'neutral' | 'accent' | 'dark' }>;
-          return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{candidates.slice(0, 8).map((item) => <Stat key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />)}</div>;
+          return <div id="dashboard-metrics" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{candidates.slice(0, 8).map((item) => <Stat key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />)}</div>;
         })()}
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><OrdersTable items={snapshot?.recent_orders ?? []} /><section className="dashboard-side-panel"><p className="dashboard-eyebrow !text-orange-600">QUICK ACTIONS</p><h3 className="mt-2 text-xl font-black text-slate-950">کارە گرنگەکان</h3><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><a href="#delivery" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Dispatch / Delivery</b><span className="mt-1 block text-[10px] text-slate-400">assignment و live monitor</span></a><a href="#payments" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Payments Center</b><span className="mt-1 block text-[10px] text-slate-400">payment + cash reconciliation</span></a><a href="#support" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Support Queue</b><span className="mt-1 block text-[10px] text-slate-400">ticket و escalation</span></a>{canAudit && <a href="#audit" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Audit Console</b><span className="mt-1 block text-[10px] text-slate-400">immutable operational trail</span></a>}</div></section></div>
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><div id="dashboard-orders"><OrdersTable items={snapshot?.recent_orders ?? []} /></div><section className="dashboard-side-panel"><p className="dashboard-eyebrow !text-orange-600">QUICK ACTIONS</p><h3 className="mt-2 text-xl font-black text-slate-950">کارە گرنگەکان</h3><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><a href="#delivery" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Dispatch / Delivery</b><span className="mt-1 block text-[10px] text-slate-400">assignment و live monitor</span></a><a href="#payments" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Payments Center</b><span className="mt-1 block text-[10px] text-slate-400">payment + cash reconciliation</span></a><a href="#support" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Support Queue</b><span className="mt-1 block text-[10px] text-slate-400">ticket و escalation</span></a>{canAudit && <a href="#audit" className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:bg-orange-50/50"><b className="block text-xs font-black">Audit Console</b><span className="mt-1 block text-[10px] text-slate-400">immutable operational trail</span></a>}</div></section></div>
         {snapshot && snapshot.recent_events.length>0 && <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)]"><div className="flex items-end justify-between"><div><p className="dashboard-eyebrow !text-orange-600">ACTIVITY</p><h3 className="mt-1 text-lg font-black">Event stream</h3></div><a href="#events" className="shakh-ghost-btn">هەموو</a></div><div className="mt-4 space-y-2">{snapshot.recent_events.map((event)=><div key={event.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3"><span className={`h-2 w-2 rounded-full ${event.severity==='error'?'bg-red-500':event.severity==='warning'?'bg-amber-500':event.severity==='success'?'bg-emerald-500':'bg-slate-400'}`} /><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-slate-800">{event.title_ckb}</p><p className="mt-1 text-[10px] text-slate-400">{event.event_type} • {time(event.created_at)}</p></div><span className="font-mono text-[9px] text-slate-400">{event.entity_type ?? 'event'}</span></div>)}</div></section>}
         {snapshot && snapshot.support_queue.length>0 && <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)]"><div className="flex items-end justify-between"><div><p className="dashboard-eyebrow !text-orange-600">SUPPORT</p><h3 className="mt-1 text-lg font-black">Queue ـی پشتیوانی</h3></div><a href="#support" className="shakh-ghost-btn">پشتیوانی</a></div><div className="mt-4 grid gap-2">{snapshot.support_queue.map((ticket)=><div key={ticket.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3"><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-slate-800">{ticket.ticket_number} — {ticket.subject}</p><p className="mt-1 text-[10px] text-slate-400">{ticket.status}</p></div><span className={`rounded-full px-2.5 py-1 text-[9px] font-black ${ticket.priority==='urgent'?'bg-red-50 text-red-700':ticket.priority==='high'?'bg-amber-50 text-amber-700':'bg-slate-100 text-slate-500'}`}>{ticket.priority}</span></div>)}</div></section>}
       </div>
