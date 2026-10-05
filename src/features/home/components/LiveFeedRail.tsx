@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "../../../lib/supabase";
 import { ShoppingBagIcon } from "../../../components/shell/icons";
 import { DEFAULT_FILTERS, type ProductSummary } from "../../marketplace/catalog";
 import ProductCard from "../../marketplace/components/ProductCard";
@@ -29,21 +30,40 @@ export default function LiveFeedRail() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    void getMarketplaceProducts({ ...DEFAULT_FILTERS, sort: "newest", onlyAvailable: true })
-      .then((rows) => {
-        if (cancelled) return;
-        setProducts(rows.slice(0, 8));
-        setError("");
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "نەتوانرا پێشنیارەکانی بازار باربکرێن.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    let timer: number | undefined;
 
-    return () => { cancelled = true; };
+    const refresh = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void getMarketplaceProducts({ ...DEFAULT_FILTERS, sort: "newest", onlyAvailable: true })
+          .then((rows) => {
+            if (cancelled) return;
+            setProducts(rows.slice(0, 8));
+            setError("");
+          })
+          .catch((err: unknown) => {
+            if (!cancelled) setError(err instanceof Error ? err.message : "نەتوانرا پێشنیارەکانی بازار باربکرێن.");
+          })
+          .finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+      }, 200);
+    };
+
+    setLoading(true);
+    refresh();
+
+    const channel = supabase
+      .channel("home-marketplace-feed")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "vendors" }, refresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   return (
