@@ -1,4 +1,7 @@
-export default function StorefrontPreview() {
+export default function StorefrontPreview({ sellerName }: { sellerName?: string | null }) {
+  const href = sellerName?.trim()
+    ? `#marketplace?q=${encodeURIComponent(sellerName.trim())}`
+    : "#marketplace";
   return (
     <section className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[var(--shakh-shadow-md)] sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -7,7 +10,7 @@ export default function StorefrontPreview() {
           <h2 className="mt-2 text-2xl font-black">فرۆشگا بە شێوەی Brand Hub</h2>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">لە Product detail ـەوە کاربەر دەتوانێت بچێتە ناو فرۆشگا، collection ـەکان ببینێت، rating و service signals بخوێنێتەوە.</p>
         </div>
-        <button type="button" className="shakh-btn-primary shakh-focus bg-orange-500 hover:bg-orange-400">بینینی فرۆشگا</button>
+        <a href={href} className="shakh-btn-primary shakh-focus bg-orange-500 hover:bg-orange-400 no-underline">بینینی فرۆشگا</a>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {['Collection', 'Trust signals', 'Seller actions'].map((item) => (
