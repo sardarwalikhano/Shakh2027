@@ -4,6 +4,9 @@ import { formatIqd, type CartItem } from "../models";
 import { removeCartItem, updateCartItem } from "../../commerce/cartApi";
 
 export default function CartPanel({ items, onItemsChange }: { items: CartItem[]; onItemsChange: (items: CartItem[]) => void }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
   if (items.length === 0) {
     return (
       <section className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-[var(--shakh-shadow-sm)] sm:p-12">
@@ -17,9 +20,6 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
       </section>
     );
   }
-
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState("");
 
   const subtotal = items.reduce((sum, item) => sum + item.unitPriceIqd * item.quantity, 0);
   const changeQuantity = async (item: CartItem, quantity: number) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import AppShell from '../../components/shell/AppShell';
 import type { MarketplaceFilters, ProductDetails, ProductSummary } from './catalog';
 import { DEFAULT_FILTERS } from './catalog';
@@ -47,6 +48,39 @@ export default function MarketplacePage() {
     return () => { cancelled = true; };
   }, [user]);
 
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refreshFavorites = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void listFavoriteIds()
+          .then((ids) => {
+            if (!cancelled) {
+              setFavoriteIds(new Set(ids));
+              setFavoriteLoadError(null);
+            }
+          })
+          .catch((error: unknown) => {
+            if (!cancelled) setFavoriteLoadError(error instanceof Error ? error.message : 'نەتوانرا دڵخوازەکان نوێ بکرێنەوە.');
+          });
+      }, 150);
+    };
+
+    const channel = supabase
+      .channel(`marketplace-favorites:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'favorite_products', filter: `user_id=eq.${user.id}` }, refreshFavorites)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     setPageSeo({
