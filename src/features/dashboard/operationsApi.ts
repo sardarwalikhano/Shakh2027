@@ -22,6 +22,7 @@ export type DashboardMetrics = {
 export type DashboardOrder = {
   id: string;
   order_number: string;
+  customer_name: string;
   status: string;
   payment_status: string;
   total_iqd: number;
