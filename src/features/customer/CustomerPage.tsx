@@ -442,7 +442,22 @@ function Wallet() {
 }
 
 function Points() {
-  return <div className="space-y-5"><div className="rounded-[28px] border border-orange-100 bg-orange-50 p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-700">D_SH POINTS</p><h2 className="mt-2 text-3xl font-black text-slate-950">— Points</h2><p className="mt-2 max-w-xl text-sm leading-7 text-slate-600">خاڵەکان لە purchase ـی پشتڕاستکراو، promotion یان referral rewards ـەوە دەتوانرێن زیاد بن.</p></div><span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-orange-600 shadow-sm"><CoinIcon className="h-5 w-5" /></span></div></div><EmptyState eyebrow="REWARDS HISTORY" title="هێشتا history ـی خاڵ نییە" body="لە کاتی بەکارهێنانی reward system ـەکە، transaction ـەکانی خاڵ لێرە بە ڕیزبەندیی کات پیشان دەدرێن." /></div>;
+  const { profile } = useAuth();
+  const points = Number(profile?.d_sh_points ?? 0);
+
+  return <div className="space-y-5">
+    <div className="rounded-[28px] border border-orange-100 bg-orange-50 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-700">D_SH POINTS</p>
+          <h2 className="mt-2 text-3xl font-black text-slate-950">{new Intl.NumberFormat("ku-IQ").format(points)} Points</h2>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-600">بڕی خاڵەکەت لە profile ـی ڕاستەقینەی Supabase ـەوە خوێندراوەتەوە. خاڵە نوێکان لە purchase ـی پشتڕاستکراو، promotion یان referral rewards ـەوە دەتوانرێن زیاد بن.</p>
+        </div>
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-orange-600 shadow-sm"><CoinIcon className="h-5 w-5" /></span>
+      </div>
+    </div>
+    <EmptyState eyebrow="REWARDS HISTORY" title="هێشتا history ـی خاڵ نییە" body="بڕی سەرەکیی خاڵ لە backend ـەوە دەهێنرێت؛ ledger ـی وردی reward دواتر لە notification/reward transactions ـەوە پڕ دەکرێتەوە." />
+  </div>;
 }
 
 function Referral() {
@@ -450,7 +465,30 @@ function Referral() {
 }
 
 function Profile() {
-  return <div className="space-y-5"><div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7"><SectionHeader eyebrow="PROFILE" title="پڕۆفایلی من" body="زانیاریی account، زمان، شار، ژمارەی مۆبایل و settings لێرە بە شێوەی typed form کۆنترۆڵ دەکرێن." /><div className="grid gap-3 sm:grid-cols-2"><ProfileRow label="ناوی تەواو" value="چاوەڕوانی چوونەژوورەوە" /><ProfileRow label="ژمارەی مۆبایل" value="چاوەڕوانی چوونەژوورەوە" /><ProfileRow label="زمان" value="کوردی — RTL" /><ProfileRow label="شار" value="هەولێر" /></div></div><div className="grid gap-3 sm:grid-cols-2"><a href="#account/notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">کۆنترۆڵی notification preferences و message center.</p></a><a href="#account/referral" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><GiftIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">Referral center</p><p className="mt-2 text-xs leading-6 text-slate-500">لینک و rewards لە یەک شوێن.</p></a></div></div>;
+  const { user, profile } = useAuth();
+  const languageLabel: Record<"ckb" | "ar" | "en", string> = {
+    ckb: "کوردی — RTL",
+    ar: "العربية — RTL",
+    en: "English — LTR",
+  };
+
+  return <div className="space-y-5">
+    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
+      <SectionHeader eyebrow="PROFILE" title="پڕۆفایلی من" body="زانیاریی account لە AuthContext و profiles ـی Supabase ـەوە دێت؛ هیچ city/phone/name ـێکی hardcoded نییە." />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ProfileRow label="ناوی تەواو" value={profile?.full_name || "ناوی تۆمارکراو نییە"} />
+        <ProfileRow label="ئیمەیڵ" value={user?.email || "—"} />
+        <ProfileRow label="ژمارەی مۆبایل" value={profile?.phone || "تۆمار نەکراوە"} />
+        <ProfileRow label="زمان" value={languageLabel[profile?.preferred_language ?? "ckb"]} />
+        <ProfileRow label="شار" value={profile?.city || "دیاری نەکراوە"} />
+        <ProfileRow label="D_SH Points" value={new Intl.NumberFormat("ku-IQ").format(Number(profile?.d_sh_points ?? 0))} />
+      </div>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <a href="#account/notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">کۆنترۆڵی notification preferences و message center.</p></a>
+      <a href="#account/referral" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><GiftIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">Referral center</p><p className="mt-2 text-xs leading-6 text-slate-500">لینک و rewards لە یەک شوێن.</p></a>
+    </div>
+  </div>;
 }
 
 function ProfileRow({ label, value }: { label: string; value: string }) {
