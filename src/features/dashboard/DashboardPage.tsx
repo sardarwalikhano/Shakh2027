@@ -6,6 +6,7 @@ import StatCard from './components/StatCard';
 import { DASHBOARD_ROLES, ROLE_MODULES, resolveDashboardRole, type DashboardRole } from './models';
 import { getOperationsSnapshot, type OperationsSnapshot } from './operationsApi';
 import { useAuth } from '../auth/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 const money = (value: number | null) => value == null ? '—' : `${new Intl.NumberFormat('ku-IQ', { maximumFractionDigits: 0 }).format(value)} IQD`;
 const number = (value: number | null) => value == null ? '—' : new Intl.NumberFormat('ku-IQ').format(value);
@@ -221,7 +222,44 @@ export default function DashboardPage() {
     window.setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }, [activeModule]);
 
-  useEffect(() => { let cancelled=false; setLoading(true); void getOperationsSnapshot().then((data)=>{ if(!cancelled) setSnapshot(data); }).catch((err)=>{ if(!cancelled) setError(err instanceof Error ? err.message : 'operations_snapshot_load_failed'); }).finally(()=>{ if(!cancelled) setLoading(false); }); return ()=>{cancelled=true;}; }, [roles.join('|')]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void getOperationsSnapshot()
+      .then((data) => { if (!cancelled) { setSnapshot(data); setError(''); } })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'operations_snapshot_load_failed'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [roles.join('|')]);
+
+  useEffect(() => {
+    const roleKey = roles.join('|');
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refresh = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void getOperationsSnapshot()
+          .then((data) => { if (!cancelled) { setSnapshot(data); setError(''); } })
+          .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'operations_snapshot_load_failed'); });
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel(`dashboard-operations:${roleKey}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_intents' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, refresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [roles.join('|')]);
 
   const canAudit = hasPermission('platform.manage');
   const metrics = snapshot?.metrics;

@@ -189,6 +189,7 @@ function statusClass(status: string) {
 function Orders() {
   const [orders, setOrders] = useState<ManagedOrderSummary[]>([]);
   const [selected, setSelected] = useState<OrderDetail | null>(null);
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -202,6 +203,24 @@ function Orders() {
   }
 
   useEffect(() => { void load(); }, [statusFilter]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`customer-orders:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `buyer_user_id=eq.${user.id}` }, () => {
+        void load();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments' }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, statusFilter]);
 
   async function openOrder(orderId: string) {
     setDetailLoading(true); setError(null);

@@ -75,6 +75,7 @@ function CaptainConsole() {
   const [assignments, setAssignments] = useState<DeliveryAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [mobileSnapshot, setMobileSnapshot] = useState<CaptainMobileSnapshot | null>(null);
   const [gpsState, setGpsState] = useState<'off' | 'searching' | 'live' | 'error'>('off');
   const [lastGpsAt, setLastGpsAt] = useState<string | null>(null);
@@ -131,27 +132,35 @@ function CaptainConsole() {
   }, [profile?.status, active?.id, user]);
 
   async function toggleAvailability() {
-    if (!profile) return;
+    if (!profile || busyAction) return;
+    setBusyAction('availability');
     try {
       const next = await setCaptainAvailability(profile.status === 'available' ? 'offline' : 'available');
       setProfile(next);
       setMessage(next.status === 'available' ? 'ئێستا بەردەستیت.' : 'ئێستا offline ـیت.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'availability failed'); }
+    finally { setBusyAction(null); }
   }
 
   async function respond(assignmentId: string, accept: boolean) {
+    const action = `respond:${assignmentId}`;
+    if (busyAction) return;
+    setBusyAction(action);
     try {
       await respondToAssignment(assignmentId, accept);
       await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'assignment response failed'); }
+    finally { setBusyAction(null); }
   }
 
   async function move(status: Exclude<DeliveryAssignment['status'], 'unassigned' | 'assigned' | 'accepted'>) {
-    if (!active) return;
+    if (!active || busyAction) return;
+    setBusyAction('move');
     try {
       await updateDeliveryStatus(active.id, status);
       await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'status update failed'); }
+    finally { setBusyAction(null); }
   }
 
   if (loading) return <main className="delivery-page"><div className="delivery-card"><div className="delivery-skeleton" /><div className="delivery-skeleton wide" /></div></main>;
@@ -163,7 +172,7 @@ function CaptainConsole() {
         <div className="delivery-profile-box">
           <strong>{profile?.captain_code ?? '—'}</strong>
           <span className={`delivery-online ${profile?.status === 'available' ? 'on' : ''}`}>{profile?.status === 'available' ? 'بەردەستم' : profile?.status === 'busy' ? 'لە کاردام' : 'Offline'}</span>
-          <button className="delivery-primary-btn" onClick={() => void toggleAvailability()} disabled={profile?.status === 'busy' || profile?.status === 'suspended'}>{profile?.status === 'available' ? 'Offline بکە' : 'بەردەست بم'}</button>
+          <button className="delivery-primary-btn" onClick={() => void toggleAvailability()} disabled={busyAction !== null || profile?.status === 'busy' || profile?.status === 'suspended'}>{profile?.status === 'available' ? 'Offline بکە' : 'بەردەست بم'}</button>
         </div>
       </section>
 
@@ -178,7 +187,7 @@ function CaptainConsole() {
         <section className="delivery-card" key={assignment.id}>
           <div className="delivery-card-head"><div><span className="delivery-kicker">NEW ASSIGNMENT</span><h2>ئۆردەر #{assignment.order_id.slice(0, 8)}</h2></div><StatusPill status={assignment.status} /></div>
           <p className="delivery-muted">کاتی خەمڵاندن: {assignment.estimated_minutes ?? '—'} خولەک</p><div className={`sla-banner ${slaClass(getClientSla({created_at: assignment.assigned_at ?? new Date().toISOString(), assignment}).state)}`}><strong>بڕی SLA</strong><span>{formatMinutesRemaining(getClientSla({created_at: assignment.assigned_at ?? new Date().toISOString(), assignment}).remaining)}</span></div>
-          <div className="delivery-actions"><button className="delivery-primary-btn" onClick={() => void respond(assignment.id, true)}>قبوڵکردن</button><button className="delivery-secondary-btn" onClick={() => void respond(assignment.id, false)}>ڕەتکردنەوە</button></div>
+          <div className="delivery-actions"><button className="delivery-primary-btn" onClick={() => void respond(assignment.id, true)} disabled={busyAction !== null}>قبوڵکردن</button><button className="delivery-secondary-btn" onClick={() => void respond(assignment.id, false)} disabled={busyAction !== null}>ڕەتکردنەوە</button></div>
         </section>
       ))}
 
@@ -189,10 +198,10 @@ function CaptainConsole() {
           {active && mobileSnapshot?.active_assignment && <div className="captain-route-contact"><div><span>کڕیار</span><strong>{mobileSnapshot.active_assignment.buyer_name}</strong></div><a href={`tel:${mobileSnapshot.active_assignment.buyer_phone}`}>{mobileSnapshot.active_assignment.buyer_phone}</a><div><span>ناونیشان</span><strong>{mobileSnapshot.active_assignment.shipping_district} · {mobileSnapshot.active_assignment.shipping_street ?? mobileSnapshot.active_assignment.shipping_landmark ?? '—'}</strong></div></div>}
           {active ? <div className="delivery-progress"><div className="delivery-step active">١<br /><span>قبوڵ</span></div><div className={['at_pickup','picked_up','out_for_delivery','delivered'].includes(active.status) ? 'delivery-step active' : 'delivery-step'}>٢<br /><span>وەرگرتن</span></div><div className={['picked_up','out_for_delivery','delivered'].includes(active.status) ? 'delivery-step active' : 'delivery-step'}>٣<br /><span>لە ڕێگا</span></div><div className={active.status === 'delivered' ? 'delivery-step active' : 'delivery-step'}>٤<br /><span>گەیاندن</span></div></div> : <div className="delivery-empty">کاتێک assignment ـێک بۆت دەنێردرێت، لێرە دەردەکەوێت.</div>}
           {active && <div className="delivery-actions">
-            {active.status === 'accepted' && <button className="delivery-primary-btn" onClick={() => void move('at_pickup')}>گەیشتنە وەرگرتن</button>}
-            {active.status === 'at_pickup' && <button className="delivery-primary-btn" onClick={() => void move('picked_up')}>وەرگرتنی ئۆردەر</button>}
-            {active.status === 'picked_up' && <button className="delivery-primary-btn" onClick={() => void move('out_for_delivery')}>دەستپێکردنی گەیاندن</button>}
-            {active.status === 'out_for_delivery' && <button className="delivery-primary-btn" onClick={() => void move('delivered')}>گەیاندن تەواو بوو</button>}
+            {active.status === 'accepted' && <button className="delivery-primary-btn" onClick={() => void move('at_pickup')} disabled={busyAction !== null}>گەیشتنە وەرگرتن</button>}
+            {active.status === 'at_pickup' && <button className="delivery-primary-btn" onClick={() => void move('picked_up')} disabled={busyAction !== null}>وەرگرتنی ئۆردەر</button>}
+            {active.status === 'picked_up' && <button className="delivery-primary-btn" onClick={() => void move('out_for_delivery')} disabled={busyAction !== null}>دەستپێکردنی گەیاندن</button>}
+            {active.status === 'out_for_delivery' && <button className="delivery-primary-btn" onClick={() => void move('delivered')} disabled={busyAction !== null}>گەیاندن تەواو بوو</button>}
             <button className="delivery-secondary-btn" onClick={() => void load()}>نوێکردنەوە</button>
           </div>}
         </div>
@@ -421,6 +430,7 @@ function TrackingConsole({ orderId }: { orderId: string }) {
     const channel = supabase
       .channel(`delivery-tracking:${orderId}`, { config: { private: true } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments', filter: `order_id=eq.${orderId}` }, () => { void load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, () => { void load(); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'captain_live_locations', filter: `assignment_id=eq.${tracking?.assignment_id ?? '00000000-0000-0000-0000-000000000000'}` }, (payload) => {
         const row = payload.new as { assignment_id?: string; latitude?: number; longitude?: number; heading?: number | null; speed_kmh?: number | null; accuracy_m?: number | null; recorded_at?: string };
         if (row.assignment_id === tracking?.assignment_id && typeof row.latitude === 'number' && typeof row.longitude === 'number') {
@@ -433,7 +443,7 @@ function TrackingConsole({ orderId }: { orderId: string }) {
   return (
     <main className="delivery-page">
       <section className="delivery-hero tracking-hero"><div><span className="delivery-eyebrow">LIVE DELIVERY</span><h1>شوێنی ئۆردەر بە زیندوویی</h1><p>دۆخی گەیاندن و شوێنی کاپتن لە داتای ڕاستەقینەی Supabase ـەوە نوێ دەکرێتەوە.</p></div><button className="delivery-secondary-btn light" onClick={() => void load()}>نوێکردنەوە</button></section>
-      {error && <div className="delivery-alert">{error}</div>}
+      {error && <div className="delivery-alert" role="alert">{error}</div>}
       {tracking && <div className="delivery-grid-two"><div className="delivery-card"><div className="delivery-card-head"><div><span className="delivery-kicker">ORDER TRACKING</span><h2>#{orderId.slice(0, 8)}</h2></div><StatusPill status={tracking.status} /></div><TrackingMap captain={tracking.location} pickup={tracking.pickup} dropoff={tracking.dropoff}/></div><div className="delivery-card"><span className="delivery-kicker">CAPTAIN</span><h2>{tracking.captain?.captain_code ?? 'لە چاوەڕوانیدا'}</h2><p className="delivery-muted">{tracking.captain ? `${tracking.captain.vehicle_make ?? ''} ${tracking.captain.vehicle_model ?? ''}` : 'کاپتن هێشتا دیاری نەکراوە.'}</p><div className="delivery-mini-metrics"><div><span>ETA</span><strong>{tracking.estimated_minutes ?? '—'} min</strong></div><div><span>Location</span><strong>{tracking.location ? 'LIVE' : 'Waiting'}</strong></div></div>{tracking.location && <p className="delivery-coordinates">{tracking.location.latitude.toFixed(5)}, {tracking.location.longitude.toFixed(5)}</p>}</div></div>}
       {!tracking && !error && <div className="delivery-card"><div className="delivery-empty">شوێنی گەیاندن هێشتا بەردەست نییە.</div></div>}
     </main>
