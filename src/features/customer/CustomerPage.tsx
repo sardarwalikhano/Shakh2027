@@ -98,6 +98,7 @@ function Overview() {
   const { profile } = useAuth();
   const [orderCount, setOrderCount] = useState<number | null>(null);
   const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+  const [recentOrders, setRecentOrders] = useState<ManagedOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -111,9 +112,10 @@ function Overview() {
         if (cancelled) return;
         setOrderCount(orders.length);
         setFavoriteCount(favorites.length);
+        setRecentOrders(orders.slice(0, 3));
       })
       .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "نەتوانرا KPI ـەکانی account باربکرێن.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "نەتوانرا داتای Overview باربکرێن.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -124,6 +126,7 @@ function Overview() {
 
   const formatCount = (value: number | null) => value == null ? "—" : new Intl.NumberFormat("ku-IQ").format(value);
   const formatMoney = (value: number | null | undefined) => value == null ? "— IQD" : new Intl.NumberFormat("ku-IQ", { maximumFractionDigits: 0 }).format(Number(value)) + " IQD";
+  const recentStatusClass = (status: string) => status === "delivered" ? "bg-emerald-50 text-emerald-700" : status === "cancelled" || status === "refunded" ? "bg-rose-50 text-rose-700" : "bg-orange-50 text-orange-700";
 
   return (
     <div className="space-y-5">
@@ -137,8 +140,16 @@ function Overview() {
 
       <div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-6">
-          <SectionHeader eyebrow="ACTIVITY" title="دوایین چاڵاکی" body="ئەم شوێنە بۆ order timeline، notification و activity feed ـی ڕاستەقینەی بەکارهێنەرە." />
-          <EmptyState eyebrow="SUPABASE DATA" title="هێشتا چاڵاکییەکی تۆمارکراو نییە" body="کاتێک بەکارهێنەر بچێتە ژوورەوە و data ـی ڕاستەقینەی هەبێت، timeline ـەکە بە شێوەی خۆکار پڕ دەبێتەوە." actionHref="#market" actionLabel="بڕۆ بۆ بازار" />
+          <div className="mb-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-600">ACTIVITY</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <div><h2 className="text-2xl font-black tracking-tight text-slate-950">دوایین ئۆردەرەکان</h2><p className="mt-2 text-sm leading-7 text-slate-500">کورتەی دوایین order ـە ڕاستەقینەکانت لە Supabase.</p></div>
+              <a href="#account/orders" className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black text-slate-600 transition hover:border-orange-200 hover:bg-orange-50">هەموو</a>
+            </div>
+          </div>
+          {loading ? <div className="rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-500">دوایین order ـەکان بار دەکرێن...</div> : null}
+          {!loading && recentOrders.length === 0 ? <EmptyState eyebrow="NO ORDERS" title="هێشتا هیچ ئۆردەرێکت نییە" body="کاتێک یەکەم order ـەکەت تۆمار بکەیت، لێرە بە کورتەی status و کۆی گشتی دەردەکەوێت." actionHref="#market" actionLabel="دەستپێکردنی کڕین" /> : null}
+          {!loading && recentOrders.length > 0 ? <div className="space-y-2">{recentOrders.map((order) => <a key={order.id} href="#account/orders" className="block rounded-2xl border border-slate-100 p-4 transition hover:border-orange-200 hover:bg-orange-50/40"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-black text-slate-950">{order.order_number}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">{order.vendor_name_ckb || order.vendor_name_ar || order.vendor_name_en || "SHAKH Store"} · {order.total_items} دانە</p><p className="mt-1 text-[10px] font-semibold text-slate-400">{new Intl.DateTimeFormat("ku-IQ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.created_at))}</p></div><div className="flex items-center gap-3"><span className={"rounded-full px-3 py-1.5 text-[9px] font-black " + recentStatusClass(order.status)}>{orderStatusLabel(order.status)}</span><strong className="text-sm font-black text-slate-950">{new Intl.NumberFormat("ku-IQ").format(Number(order.total_iqd))} د.ع</strong></div></div></a>)}</div> : null}
         </div>
 
         <div className="rounded-[28px] bg-slate-950 p-5 text-white shadow-[var(--shakh-shadow-md)] sm:p-6">
