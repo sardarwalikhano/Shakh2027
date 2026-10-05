@@ -25,6 +25,9 @@ const RoleAccountsPage = lazy(() => import("./features/roles/RoleAccountsPage"))
 const DeliveryPricingPage = lazy(() => import("./features/delivery/DeliveryPricingPage"));
 
 function resolveRoute() {
+  const queryAuth = new URLSearchParams(window.location.search).get("auth");
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  if (queryAuth === "password-recovery" || queryAuth === "email-confirmation" || hashParams.get("type") === "recovery") return "auth";
   if (window.location.hash.startsWith("#auth")) return "auth";
   if (window.location.hash === "#" || window.location.hash === "") return "home";
   if (window.location.hash.startsWith("#checkout")) return "checkout";
