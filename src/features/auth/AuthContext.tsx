@@ -54,6 +54,16 @@ async function loadIdentity(user: User | null) {
   };
 }
 
+function syncRecoveryRoute() {
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  if (hashParams.get('type') !== 'recovery') return;
+
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set('auth', 'password-recovery');
+  nextUrl.hash = '';
+  window.history.replaceState({}, '', nextUrl.toString());
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -72,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const bootstrap = async () => {
+      syncRecoveryRoute();
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       if (!mounted) return;
@@ -82,9 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles(identity.roles);
       setPermissions(identity.permissions);
       setLoading(false);
-      if (window.location.hash.startsWith('#access_token=')) {
-        window.location.hash = '#auth/reset-password';
-      }
     };
 
     bootstrap().catch(() => {
@@ -96,7 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession);
       if (event === 'PASSWORD_RECOVERY') {
         window.setTimeout(() => {
-          if (mounted) window.location.hash = '#auth/reset-password';
+          if (!mounted) return;
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set('auth', 'password-recovery');
+          nextUrl.hash = '';
+          window.history.replaceState({}, '', nextUrl.toString());
         }, 0);
       }
       window.setTimeout(async () => {
