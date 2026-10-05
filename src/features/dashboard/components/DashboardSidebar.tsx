@@ -9,6 +9,7 @@ const externalLinks: Record<string, string> = {
   Events: "#events",
   Analytics: "#analytics",
   Promotions: "#promotions",
+  Posts: "#posts",
   Vendors: "#vendor",
   Products: "#vendor",
   Catalog: "#vendor",
