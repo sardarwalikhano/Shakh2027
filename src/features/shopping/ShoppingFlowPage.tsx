@@ -9,7 +9,7 @@ import ShoppingStepper from "./components/ShoppingStepper";
 import { EMPTY_ADDRESS, type AddressDraft, type DeliveryOption, type PaymentMethod, type ShoppingStep } from "./models";
 import { getMyCart } from "../commerce/cartApi";
 import { supabase } from "../../lib/supabase";
-import { getMyAddresses, saveAddress, type PlaceOrderResult } from "../commerce/orderApi";
+import { getMyAddresses, saveAddress, placeOrderFromCart, type PlaceOrderResult } from "../commerce/orderApi";
 import { validateCoupon, type CouponValidation } from "../commerce/promotionsApi";
 import { recordAnalyticsEvent } from "../commerce/analyticsApi";
 import { subscribeToPaymentIntents, type PaymentInitialization } from "../commerce/paymentApi";
