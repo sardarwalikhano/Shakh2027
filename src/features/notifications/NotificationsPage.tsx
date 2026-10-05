@@ -32,12 +32,17 @@ export default function NotificationsPage() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [busy, setBusy] = useState(true);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setBusy(true);
+    setError("");
     void Promise.all([getNotifications(), getNotificationPreferences(user.id)]).then(([nextRows, nextPrefs]) => {
       if (!cancelled) { setRows(nextRows); setPrefs(nextPrefs); }
+    }).catch((err: unknown) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : "نەتوانرا Notification Center باربکرێت.");
     }).finally(() => { if (!cancelled) setBusy(false); });
     const channel = subscribeToNotifications(user.id, (incoming) => {
       setRows((current) => [incoming, ...current.filter((row) => row.id !== incoming.id)].slice(0, 50));
@@ -49,19 +54,39 @@ export default function NotificationsPage() {
 
   async function readOne(row: NotificationRow) {
     if (row.read_at) return;
-    await markNotificationRead(row.id);
-    setRows((current) => current.map((item) => item.id === row.id ? { ...item, read_at: new Date().toISOString() } : item));
+    setError("");
+    try {
+      await markNotificationRead(row.id);
+      setRows((current) => current.map((item) => item.id === row.id ? { ...item, read_at: new Date().toISOString() } : item));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "نەتوانرا ئاگادارکردنەوەکە خوێندراوە بکرێت.");
+    }
   }
 
   async function readAll() {
-    await markAllNotificationsRead();
-    const now = new Date().toISOString();
-    setRows((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
+    setError("");
+    try {
+      await markAllNotificationsRead();
+      const now = new Date().toISOString();
+      setRows((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "نەتوانرا هەموو ئاگادارکردنەوەکان خوێندراوە بکرێن.");
+    }
   }
 
   async function savePrefs(next: NotificationPreferences) {
-    setPrefs(next); setSavingPrefs(true);
-    try { await updateNotificationPreferences(next); } finally { setSavingPrefs(false); }
+    const previous = prefs;
+    setPrefs(next);
+    setSavingPrefs(true);
+    setError("");
+    try {
+      await updateNotificationPreferences(next);
+    } catch (err: unknown) {
+      setPrefs(previous);
+      setError(err instanceof Error ? err.message : "نەتوانرا ڕێکخستنەکانی ئاگادارکردنەوە هەڵبگیرێن.");
+    } finally {
+      setSavingPrefs(false);
+    }
   }
 
   return (
@@ -80,6 +105,7 @@ export default function NotificationsPage() {
             </div>
           </div>
         </section>
+        {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{error}</div>}
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
           <div className="space-y-3">

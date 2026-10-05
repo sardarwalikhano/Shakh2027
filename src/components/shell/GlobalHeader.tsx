@@ -109,9 +109,9 @@ export default function GlobalHeader() {
             <SearchIcon className="h-[19px] w-[19px]" />
           </button>
           <ThemeToggle />
-          <button className="shakh-icon-button hidden sm:grid" type="button" aria-label="شوێن">
+          <a href="#account/profile" className="shakh-icon-button hidden sm:grid" aria-label="شوێن و ناونیشان">
             <MapPinIcon className="h-[19px] w-[19px]" />
-          </button>
+          </a>
           <a href="#account/wishlist" className="shakh-icon-button hidden md:grid" aria-label="دڵخوازەکان">
             <HeartIcon className="h-[19px] w-[19px]" />
           </a>

@@ -95,19 +95,61 @@ export default function CustomerPage() {
 }
 
 function Overview() {
+  const { profile } = useAuth();
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+  const [recentOrders, setRecentOrders] = useState<ManagedOrderSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    Promise.all([listCustomerOrders(null, 100), listFavoriteProducts(100)])
+      .then(([orders, favorites]) => {
+        if (cancelled) return;
+        setOrderCount(orders.length);
+        setFavoriteCount(favorites.length);
+        setRecentOrders(orders.slice(0, 3));
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "نەتوانرا داتای Overview باربکرێن.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const formatCount = (value: number | null) => value == null ? "—" : new Intl.NumberFormat("ku-IQ").format(value);
+  const formatMoney = (value: number | null | undefined) => value == null ? "— IQD" : new Intl.NumberFormat("ku-IQ", { maximumFractionDigits: 0 }).format(Number(value)) + " IQD";
+  const recentStatusClass = (status: string) => status === "delivered" ? "bg-emerald-50 text-emerald-700" : status === "cancelled" || status === "refunded" ? "bg-rose-50 text-rose-700" : "bg-orange-50 text-orange-700";
+
   return (
     <div className="space-y-5">
+      {loadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{loadError}</div> : null}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="ئۆردەرەکان" value="—" detail="داتا لە Supabase دەهێنرێت" Icon={ClipboardIcon} href="#account/orders" />
-        <MetricCard label="دڵخوازەکان" value="—" detail="لیستی سەیڤ کراو" Icon={HeartFillIcon} href="#account/wishlist" />
-        <MetricCard label="جزدان" value="— IQD" detail="بڕی ڕاستەقینە لە backend" Icon={WalletIcon} href="#account/wallet" />
-        <MetricCard label="D_SH Points" value="—" detail="خاڵی بەکارهێنەر" Icon={CoinIcon} href="#account/points" />
+        <MetricCard label="ئۆردەرەکان" value={loading ? "…" : formatCount(orderCount)} detail="کۆی order ـەکانی account" Icon={ClipboardIcon} href="#account/orders" />
+        <MetricCard label="دڵخوازەکان" value={loading ? "…" : formatCount(favoriteCount)} detail="کۆی بەرهەمە سەیڤکراوەکان" Icon={HeartFillIcon} href="#account/wishlist" />
+        <MetricCard label="جزدان" value={formatMoney(profile?.wallet_balance_iqd)} detail="بڕی ڕاستەقینەی profile" Icon={WalletIcon} href="#account/wallet" />
+        <MetricCard label="D_SH Points" value={formatCount(Number(profile?.d_sh_points ?? 0))} detail="خاڵی ئێستای account" Icon={CoinIcon} href="#account/points" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-6">
-          <SectionHeader eyebrow="ACTIVITY" title="دوایین چاڵاکی" body="ئەم شوێنە بۆ order timeline، notification و activity feed ـی ڕاستەقینەی بەکارهێنەرە." />
-          <EmptyState eyebrow="SUPABASE DATA" title="هێشتا چاڵاکییەکی تۆمارکراو نییە" body="کاتێک بەکارهێنەر بچێتە ژوورەوە و data ـی ڕاستەقینەی هەبێت، timeline ـەکە بە شێوەی خۆکار پڕ دەبێتەوە." actionHref="#market" actionLabel="بڕۆ بۆ بازار" />
+          <div className="mb-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-600">ACTIVITY</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <div><h2 className="text-2xl font-black tracking-tight text-slate-950">دوایین ئۆردەرەکان</h2><p className="mt-2 text-sm leading-7 text-slate-500">کورتەی دوایین order ـە ڕاستەقینەکانت لە Supabase.</p></div>
+              <a href="#account/orders" className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black text-slate-600 transition hover:border-orange-200 hover:bg-orange-50">هەموو</a>
+            </div>
+          </div>
+          {loading ? <div className="rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-500">دوایین order ـەکان بار دەکرێن...</div> : null}
+          {!loading && recentOrders.length === 0 ? <EmptyState eyebrow="NO ORDERS" title="هێشتا هیچ ئۆردەرێکت نییە" body="کاتێک یەکەم order ـەکەت تۆمار بکەیت، لێرە بە کورتەی status و کۆی گشتی دەردەکەوێت." actionHref="#market" actionLabel="دەستپێکردنی کڕین" /> : null}
+          {!loading && recentOrders.length > 0 ? <div className="space-y-2">{recentOrders.map((order) => <a key={order.id} href="#account/orders" className="block rounded-2xl border border-slate-100 p-4 transition hover:border-orange-200 hover:bg-orange-50/40"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-black text-slate-950">{order.order_number}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">{order.vendor_name_ckb || order.vendor_name_ar || order.vendor_name_en || "SHAKH Store"} · {order.total_items} دانە</p><p className="mt-1 text-[10px] font-semibold text-slate-400">{new Intl.DateTimeFormat("ku-IQ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.created_at))}</p></div><div className="flex items-center gap-3"><span className={"rounded-full px-3 py-1.5 text-[9px] font-black " + recentStatusClass(order.status)}>{orderStatusLabel(order.status)}</span><strong className="text-sm font-black text-slate-950">{new Intl.NumberFormat("ku-IQ").format(Number(order.total_iqd))} د.ع</strong></div></div></a>)}</div> : null}
         </div>
 
         <div className="rounded-[28px] bg-slate-950 p-5 text-white shadow-[var(--shakh-shadow-md)] sm:p-6">
@@ -485,7 +527,7 @@ function Profile() {
       </div>
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
-      <a href="#account/notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">کۆنترۆڵی notification preferences و message center.</p></a>
+      <a href="#notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">Notification preferences و message center.</p></a>
       <a href="#account/referral" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><GiftIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">Referral center</p><p className="mt-2 text-xs leading-6 text-slate-500">لینک و rewards لە یەک شوێن.</p></a>
     </div>
   </div>;
