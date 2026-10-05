@@ -15,7 +15,7 @@ import {
 } from './vendorApi';
 
 const money = (value: number) => new Intl.NumberFormat('ku-IQ').format(value);
-const vendorName = (vendor: VendorCenterSnapshot['vendor']) => vendor ? (vendor.name_ckb || vendor.name_ar || vendor.name_en) : '';
+const vendorName = (vendor: VendorCenterSnapshot['vendor'] | undefined) => vendor ? (vendor.name_ckb || vendor.name_ar || vendor.name_en) : '';
 
 const initialForm = {
   slug: '', nameCkb: '', nameAr: '', nameEn: '', basePriceIqd: '', quantity: '0', lowStockThreshold: '5', categoryId: '', descriptionCkb: '', descriptionAr: '', descriptionEn: '', status: 'draft' as 'draft' | 'active',
