@@ -124,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     profile,
     roles,
+    permissions,
     loading,
     hasRole: (required) => {
       const values = Array.isArray(required) ? required : [required];
