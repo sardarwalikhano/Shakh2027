@@ -516,7 +516,7 @@ function Profile() {
       </div>
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
-      <a href="#account/notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">کۆنترۆڵی notification preferences و message center.</p></a>
+      <a href="#notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">Notification preferences و message center.</p></a>
       <a href="#account/referral" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><GiftIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">Referral center</p><p className="mt-2 text-xs leading-6 text-slate-500">لینک و rewards لە یەک شوێن.</p></a>
     </div>
   </div>;
