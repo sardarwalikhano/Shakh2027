@@ -16,6 +16,7 @@ import { RequireAuth, RequireRole, RequirePermission } from "./features/auth/Aut
 const AuditConsolePage = lazy(() => import("./features/dashboard/AuditConsolePage"));
 const AnalyticsPage = lazy(() => import("./features/dashboard/AnalyticsPage"));
 const PromotionsPage = lazy(() => import("./features/dashboard/PromotionsPage"));
+const PostsPage = lazy(() => import("./features/marketplace/PostsPage"));
 const VendorCenterPage = lazy(() => import("./features/vendor/VendorCenterPage"));
 const HomePage = lazy(() => import("./features/home/HomePage"));
 const CarsPage = lazy(() => import("./features/cars/CarsPage"));
@@ -40,6 +41,7 @@ function resolveRoute() {
   if (window.location.hash.startsWith("#audit")) return "audit";
   if (window.location.hash.startsWith("#analytics")) return "analytics";
   if (window.location.hash.startsWith("#promotions")) return "promotions";
+  if (window.location.hash.startsWith("#posts")) return "posts";
   if (window.location.hash.startsWith("#vendor")) return "vendor";
   if (window.location.hash.startsWith("#delivery-pricing")) return "delivery-pricing";
   if (window.location.hash.startsWith("#tracking:")) return "tracking";
@@ -86,6 +88,7 @@ export default function App() {
         {route === "audit" && <RequirePermission permission="platform.manage"><AuditConsolePage /></RequirePermission>}
         {route === "analytics" && <RequirePermission permission="analytics.read"><AnalyticsPage /></RequirePermission>}
         {route === "promotions" && <RequirePermission permission="promotions.manage"><PromotionsPage /></RequirePermission>}
+        {route === "posts" && <RequirePermission permission="platform.manage"><PostsPage /></RequirePermission>}
         {route === "vendor" && <RequirePermission permission="catalog.manage"><VendorCenterPage /></RequirePermission>}
         {route === "delivery-pricing" && <RequirePermission permission="delivery.manage"><DeliveryPricingPage /></RequirePermission>}
         {route === "delivery" && <RequireAuth><DeliveryPage /></RequireAuth>}
