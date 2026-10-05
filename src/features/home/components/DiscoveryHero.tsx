@@ -1,6 +1,10 @@
 import { MapPinIcon, SearchIcon } from "../../../components/shell/icons";
+import { useAuth } from "../../auth/AuthContext";
 
 export default function DiscoveryHero() {
+  const { profile } = useAuth();
+  const city = profile?.city?.trim() || "هەولێر";
+
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.45fr)]">
       <article className="relative min-h-[360px] overflow-hidden rounded-[30px] bg-slate-950 p-6 text-white shadow-[var(--shakh-shadow-md)] sm:min-h-[420px] sm:p-9 lg:min-h-[440px]">
@@ -37,7 +41,7 @@ export default function DiscoveryHero() {
             <MapPinIcon className="h-4 w-4" />
             شوێنی تۆ
           </span>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">هەولێر</span>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">{city}</span>
         </div>
         <div className="mt-8 rounded-[26px] bg-slate-950 p-5 text-white">
           <p className="text-xs font-bold text-slate-400">نزیکترین ئەنجامەکان</p>
