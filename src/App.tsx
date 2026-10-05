@@ -1,27 +1,27 @@
-import { useEffect, useState } from "react";
-import MarketplacePage from "./features/marketplace/MarketplacePage";
-import ShoppingFlowPage from "./features/shopping/ShoppingFlowPage";
-import CustomerPage from "./features/customer/CustomerPage";
-import DashboardPage from "./features/dashboard/DashboardPage";
-import FinancePage from "./features/finance/FinancePage";
-import DeliveryPage from "./features/delivery/DeliveryPage";
-import PaymentsPage from "./features/payments/PaymentsPage";
-import NotificationsPage from "./features/notifications/NotificationsPage";
-import SupportPage from "./features/support/SupportPage";
-import EventCenterPage from "./features/events/EventCenterPage";
+import { lazy, Suspense, useEffect, useState } from "react";
+const MarketplacePage = lazy(() => import("./features/marketplace/MarketplacePage"));
+const ShoppingFlowPage = lazy(() => import("./features/shopping/ShoppingFlowPage"));
+const CustomerPage = lazy(() => import("./features/customer/CustomerPage"));
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
+const FinancePage = lazy(() => import("./features/finance/FinancePage"));
+const DeliveryPage = lazy(() => import("./features/delivery/DeliveryPage"));
+const PaymentsPage = lazy(() => import("./features/payments/PaymentsPage"));
+const NotificationsPage = lazy(() => import("./features/notifications/NotificationsPage"));
+const SupportPage = lazy(() => import("./features/support/SupportPage"));
+const EventCenterPage = lazy(() => import("./features/events/EventCenterPage"));
 import ErrorBoundary from "./components/ux/ErrorBoundary";
 import { AuthProvider } from "./features/auth/AuthContext";
-import AuthPage from "./features/auth/AuthPage";
+const AuthPage = lazy(() => import("./features/auth/AuthPage"));
 import { RequireAuth, RequireRole, RequirePermission } from "./features/auth/AuthGuards";
-import AuditConsolePage from "./features/dashboard/AuditConsolePage";
-import AnalyticsPage from "./features/dashboard/AnalyticsPage";
-import PromotionsPage from "./features/dashboard/PromotionsPage";
-import VendorCenterPage from "./features/vendor/VendorCenterPage";
-import HomePage from "./features/home/HomePage";
-import CarsPage from "./features/cars/CarsPage";
-import UmrahPage from "./features/umrah/UmrahPage";
-import RoleAccountsPage from "./features/roles/RoleAccountsPage";
-import DeliveryPricingPage from "./features/delivery/DeliveryPricingPage";
+const AuditConsolePage = lazy(() => import("./features/dashboard/AuditConsolePage"));
+const AnalyticsPage = lazy(() => import("./features/dashboard/AnalyticsPage"));
+const PromotionsPage = lazy(() => import("./features/dashboard/PromotionsPage"));
+const VendorCenterPage = lazy(() => import("./features/vendor/VendorCenterPage"));
+const HomePage = lazy(() => import("./features/home/HomePage"));
+const CarsPage = lazy(() => import("./features/cars/CarsPage"));
+const UmrahPage = lazy(() => import("./features/umrah/UmrahPage"));
+const RoleAccountsPage = lazy(() => import("./features/roles/RoleAccountsPage"));
+const DeliveryPricingPage = lazy(() => import("./features/delivery/DeliveryPricingPage"));
 
 function resolveRoute() {
   if (window.location.hash.startsWith("#auth")) return "auth";
@@ -69,6 +69,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ErrorBoundary>
+        <Suspense fallback={<div dir="rtl" className="grid min-h-[50vh] place-items-center bg-slate-50 px-4 text-sm font-bold text-slate-500">لاپەڕەکە بار دەکرێت...</div>}>
         {route === "auth" && <AuthPage />}
         {route === "home" && <HomePage />}
         {route === "cars" && <CarsPage />}
@@ -90,6 +91,7 @@ export default function App() {
         {route === "delivery" && <RequireAuth><DeliveryPage /></RequireAuth>}
         {route === "tracking" && <RequireAuth><DeliveryPage orderId={trackingOrderId} /></RequireAuth>}
         {route === "market" && <MarketplacePage />}
+        </Suspense>
       </ErrorBoundary>
     </AuthProvider>
   );
