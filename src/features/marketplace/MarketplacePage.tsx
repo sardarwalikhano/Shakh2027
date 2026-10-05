@@ -54,9 +54,8 @@ export default function MarketplacePage() {
     const syncSearchFromHash = () => {
       const rawHash = window.location.hash.slice(1);
       const [route, rawQuery] = rawHash.split('?');
-      if (route !== 'marketplace') return;
+      const query = route === 'marketplace' ? new URLSearchParams(rawQuery ?? '').get('q') ?? '' : '';
 
-      const query = new URLSearchParams(rawQuery ?? '').get('q') ?? '';
       setFilters((current) => current.query === query ? current : { ...current, query });
     };
 
