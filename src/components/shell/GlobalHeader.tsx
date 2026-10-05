@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { signOut } from "../../features/auth/auth";
 import ThemeToggle from "../ux/ThemeToggle";
@@ -14,6 +14,7 @@ import {
 
 export default function GlobalHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { user, profile } = useAuth();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
@@ -26,6 +27,19 @@ export default function GlobalHeader() {
     });
     return () => { cancelled = true; void channel.unsubscribe(); };
   }, [user]);
+
+  const submitSearch = () => {
+    const query = searchQuery.trim();
+    setSearchOpen(false);
+    window.location.hash = query ? `#marketplace?q=${encodeURIComponent(query)}` : "#market";
+  };
+
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitSearch();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -47,7 +61,10 @@ export default function GlobalHeader() {
             <SearchIcon className="h-[18px] w-[18px] shrink-0 text-slate-400" />
             <input
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
-              placeholder="بگەڕێ بۆ بەرهەم، فرۆشگا، خواردن..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={onSearchKeyDown}
+                            placeholder="بگەڕێ بۆ بەرهەم، فرۆشگا، خواردن..."
               aria-label="گەڕانی SHAKH"
             />
             <kbd className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-400 xl:block">Ctrl K</kbd>
@@ -91,7 +108,15 @@ export default function GlobalHeader() {
         <div className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
           <label className="flex h-11 items-center gap-3 rounded-[14px] border border-slate-200 bg-slate-50 px-4 focus-within:border-orange-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-500/10">
             <SearchIcon className="h-[18px] w-[18px] text-slate-400" />
-            <input autoFocus className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="بگەڕێ..." aria-label="گەڕان" />
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={onSearchKeyDown}
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+              placeholder="بگەڕێ..."
+              aria-label="گەڕان"
+            />
           </label>
         </div>
       )}
