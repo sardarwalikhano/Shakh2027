@@ -1,0 +1,9 @@
+src/features/auth/auth.ts
+src/features/auth/AuthContext.tsx
+src/features/auth/AuthGuards.tsx
+src/features/auth/AuthPage.tsx
+src/components/shell/GlobalHeader.tsx
+src/App.tsx
+package.json
+docs/PHASE_09_AUTH_RBAC.md
+supabase_migration_phase9.sql

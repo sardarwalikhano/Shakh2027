@@ -1,0 +1,10 @@
+-- SHAKH 2027 — Phase 26 canonical source marker
+--
+-- The production project received Phase 26 through the following timestamped migrations:
+--   20261005103009_phase26_cars_umrah_role_accounts_v3
+--   20261005103047_phase26_role_application_list_realtime
+--   20261005103441_phase26_finance_pwa_hardening
+--
+-- This repository intentionally keeps the live schema migration history documented rather
+-- than replaying a divergent duplicate migration. The canonical implementation is described
+-- in docs/PHASE_26_CARS_UMRAH_ROLE_ACCOUNTS.md and docs/PHASE_26_VERIFICATION.md.

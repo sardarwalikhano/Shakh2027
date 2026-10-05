@@ -1,0 +1,44 @@
+import { ShoppingBagIcon } from "../../../components/shell/icons";
+import SectionHeading from "./SectionHeading";
+
+function ProductSkeleton({ wide = false }: { wide?: boolean }) {
+  return (
+    <article className={`overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[var(--shakh-shadow-sm)] ${wide ? "min-w-[290px]" : "min-w-[245px]"}`} aria-hidden="true">
+      <div className="aspect-[1.05/1] animate-pulse bg-slate-100" />
+      <div className="space-y-3 p-4">
+        <div className="h-2.5 w-20 animate-pulse rounded-full bg-slate-100" />
+        <div className="h-4 w-[82%] animate-pulse rounded-full bg-slate-100" />
+        <div className="h-3 w-[58%] animate-pulse rounded-full bg-slate-100" />
+        <div className="flex items-center justify-between pt-1">
+          <div className="h-5 w-24 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-100" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function LiveFeedRail() {
+  return (
+    <section>
+      <SectionHeading
+        eyebrow="Marketplace Feed"
+        title="پێشنیارەکان بۆ تۆ"
+        action={<span className="inline-flex items-center gap-1 text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> dynamic data</span>}
+      />
+      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ProductSkeleton />
+        <ProductSkeleton />
+        <ProductSkeleton wide />
+        <ProductSkeleton />
+      </div>
+      <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-dashed border-slate-300 bg-white px-4 py-4">
+        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-orange-600"><ShoppingBagIcon className="h-5 w-5" /></span>
+        <div className="min-w-0">
+          <p className="text-xs font-black text-slate-950">ئەم feed ـە بە data ـی ڕاستەقینە پڕ دەکرێتەوە.</p>
+          <p className="mt-0.5 text-[11px] leading-5 text-slate-500">لە Phase 4 ـی Commerce Core ـدا products، pricing، inventory و seller signals لە Supabase دەهێنرێن؛ هیچ mock product data نییە.</p>
+        </div>
+      </div>
+    </section>
+  );
+}

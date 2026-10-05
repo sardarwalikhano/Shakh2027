@@ -1,0 +1,3 @@
+-- SHAKH 2027 Phase 20 — private schema reference hardening
+-- The live project stores privileged implementations in schema `private` and public APIs as SECURITY INVOKER wrappers.
+-- See docs/PHASE_20_ORDER_MANAGEMENT.md for the lifecycle and access model.
