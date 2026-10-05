@@ -47,12 +47,21 @@ function resolveRoute() {
   return "market";
 }
 
+function resolveTrackingOrderId() {
+  return window.location.hash.startsWith("#tracking:")
+    ? window.location.hash.slice("#tracking:".length) || undefined
+    : undefined;
+}
+
 export default function App() {
   const [route, setRoute] = useState(resolveRoute);
-  const trackingOrderId = window.location.hash.startsWith('#tracking:') ? window.location.hash.slice('#tracking:'.length) : undefined;
+  const [trackingOrderId, setTrackingOrderId] = useState(resolveTrackingOrderId);
 
   useEffect(() => {
-    const onHashChange = () => setRoute(resolveRoute());
+    const onHashChange = () => {
+      setRoute(resolveRoute());
+      setTrackingOrderId(resolveTrackingOrderId());
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
