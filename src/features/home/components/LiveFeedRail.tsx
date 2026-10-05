@@ -1,4 +1,8 @@
+import { useEffect, useState } from "react";
 import { ShoppingBagIcon } from "../../../components/shell/icons";
+import { DEFAULT_FILTERS, type ProductSummary } from "../../marketplace/catalog";
+import ProductCard from "../../marketplace/components/ProductCard";
+import { getMarketplaceProducts } from "../../commerce/catalogApi";
 import SectionHeading from "./SectionHeading";
 
 function ProductSkeleton({ wide = false }: { wide?: boolean }) {
@@ -19,6 +23,29 @@ function ProductSkeleton({ wide = false }: { wide?: boolean }) {
 }
 
 export default function LiveFeedRail() {
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void getMarketplaceProducts({ ...DEFAULT_FILTERS, sort: "newest", onlyAvailable: true })
+      .then((rows) => {
+        if (cancelled) return;
+        setProducts(rows.slice(0, 8));
+        setError("");
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "نەتوانرا پێشنیارەکانی بازار باربکرێن.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <section>
       <SectionHeading
@@ -26,17 +53,32 @@ export default function LiveFeedRail() {
         title="پێشنیارەکان بۆ تۆ"
         action={<span className="inline-flex items-center gap-1 text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> dynamic data</span>}
       />
-      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <ProductSkeleton />
-        <ProductSkeleton />
-        <ProductSkeleton wide />
-        <ProductSkeleton />
-      </div>
+      {error ? <div role="alert" className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{error}</div> : null}
+      {loading ? (
+        <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <ProductSkeleton />
+          <ProductSkeleton />
+          <ProductSkeleton wide />
+          <ProductSkeleton />
+        </div>
+      ) : products.length ? (
+        <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {products.map((product) => (
+            <div key={product.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+              <ProductCard product={product} onOpen={(item) => { window.location.hash = `#marketplace/product/${item.slug || item.id}`; }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm font-bold text-slate-500">
+          هێشتا بەرهەمی بەردەست بۆ feed ـی Home نییە.
+        </div>
+      )}
       <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-dashed border-slate-300 bg-white px-4 py-4">
         <span className="grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-orange-600"><ShoppingBagIcon className="h-5 w-5" /></span>
         <div className="min-w-0">
-          <p className="text-xs font-black text-slate-950">ئەم feed ـە بە data ـی ڕاستەقینە پڕ دەکرێتەوە.</p>
-          <p className="mt-0.5 text-[11px] leading-5 text-slate-500">لە Phase 4 ـی Commerce Core ـدا products، pricing، inventory و seller signals لە Supabase دەهێنرێن؛ هیچ mock product data نییە.</p>
+          <p className="text-xs font-black text-slate-950">feed ـەکە لە catalog ـی ڕاستەقینەی SHAKH ـەوەیە.</p>
+          <p className="mt-0.5 text-[11px] leading-5 text-slate-500">تەنها products ـی active و بەردەست لە Supabase لێرە پیشان دەدرێن؛ هیچ mock product data بەکارناهێنرێت.</p>
         </div>
       </div>
     </section>

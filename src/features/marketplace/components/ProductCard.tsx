@@ -22,11 +22,16 @@ export default function ProductCard({
   return (
     <article className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[var(--shakh-shadow-sm)] transition duration-200 hover:-translate-y-1 hover:shadow-[var(--shakh-shadow-md)]">
       <div className="relative aspect-[4/5] overflow-hidden bg-slate-100">
-          {product.image ? (
-            <img src={product.image.url} alt={product.image.alt} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+          {product.image?.url ? (
+            <img
+              src={product.image.url}
+              alt={product.image.alt || product.title}
+              loading="lazy"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
           ) : (
-            <div className="grid h-full place-items-center bg-gradient-to-br from-slate-100 via-white to-orange-50 text-xs font-bold text-slate-400">
-              وێنەی بەرهەم
+            <div className="grid h-full place-items-center bg-gradient-to-br from-slate-100 via-white to-orange-50 px-4 text-center text-xs font-bold text-slate-400">
+              وێنەی بەرهەم بەردەست نییە
             </div>
           )}
           <button
