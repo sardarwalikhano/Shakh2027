@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { signOut } from "../../features/auth/auth";
 import ThemeToggle from "../ux/ThemeToggle";
@@ -15,6 +15,8 @@ import {
 export default function GlobalHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const desktopSearchRef = useRef<HTMLInputElement>(null);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
   const { user, profile } = useAuth();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
@@ -27,6 +29,30 @@ export default function GlobalHeader() {
     });
     return () => { cancelled = true; void channel.unsubscribe(); };
   }, [user]);
+
+  useEffect(() => {
+    const onGlobalKeyDown = (event: globalThis.KeyboardEvent) => {
+      const isShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+      if (isShortcut) {
+        event.preventDefault();
+        setSearchOpen(true);
+        window.requestAnimationFrame(() => {
+          const input = window.matchMedia("(min-width: 1024px)").matches
+            ? desktopSearchRef.current
+            : mobileSearchRef.current;
+          input?.focus();
+        });
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setSearchOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, []);
 
   const submitSearch = () => {
     const query = searchQuery.trim();
@@ -60,11 +86,12 @@ export default function GlobalHeader() {
           <label className="shakh-search flex h-11 items-center gap-3 rounded-[14px] border border-slate-200 bg-slate-50/90 px-4 transition focus-within:border-orange-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-500/10">
             <SearchIcon className="h-[18px] w-[18px] shrink-0 text-slate-400" />
             <input
+              ref={desktopSearchRef}
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               onKeyDown={onSearchKeyDown}
-                            placeholder="بگەڕێ بۆ بەرهەم، فرۆشگا، خواردن..."
+              placeholder="بگەڕێ بۆ بەرهەم، فرۆشگا، خواردن..."
               aria-label="گەڕانی SHAKH"
             />
             <kbd className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-400 xl:block">Ctrl K</kbd>
@@ -72,7 +99,13 @@ export default function GlobalHeader() {
         </div>
 
         <div className="mr-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <button className="shakh-icon-button lg:hidden" type="button" aria-label="گەڕان" onClick={() => setSearchOpen((open) => !open)}>
+          <button className="shakh-icon-button lg:hidden" type="button" aria-label="گەڕان" onClick={() => {
+            setSearchOpen((open) => {
+              const next = !open;
+              if (next) window.requestAnimationFrame(() => mobileSearchRef.current?.focus());
+              return next;
+            });
+          }}>
             <SearchIcon className="h-[19px] w-[19px]" />
           </button>
           <ThemeToggle />
@@ -109,6 +142,7 @@ export default function GlobalHeader() {
           <label className="flex h-11 items-center gap-3 rounded-[14px] border border-slate-200 bg-slate-50 px-4 focus-within:border-orange-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-500/10">
             <SearchIcon className="h-[18px] w-[18px] text-slate-400" />
             <input
+              ref={mobileSearchRef}
               autoFocus
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
