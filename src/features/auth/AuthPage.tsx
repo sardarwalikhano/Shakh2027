@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   requestPasswordReset,
   resendSignupConfirmation,
+  signInWithGoogle,
   signInWithPassword,
   signOut,
   signUpWithPassword,
@@ -84,7 +85,7 @@ export default function AuthPage() {
   }, [resetCooldown]);
 
   useEffect(() => {
-    if (mode === 'email-confirmation' && user) window.location.hash = '#market';
+    if (user && (mode === 'email-confirmation' || mode === 'sign-in')) window.location.hash = '#market';
   }, [mode, user]);
 
   const navigateToSignIn = () => {
@@ -190,6 +191,21 @@ export default function AuthPage() {
     }
   };
 
+  const signInWithGoogleAccount = async () => {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    setShowResendConfirmation(false);
+
+    try {
+      const { error: googleError } = await signInWithGoogle();
+      if (googleError) throw googleError;
+    } catch (caught) {
+      setError(friendlyAuthError(caught));
+      setBusy(false);
+    }
+  };
+
   const resendConfirmation = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -279,6 +295,22 @@ export default function AuthPage() {
             <button disabled={busy} className="mt-1 min-h-12 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60" type="submit">
               {busy ? 'چاوەڕوان بە...' : mode === 'sign-in' ? 'چوونەژوورەوە' : mode === 'sign-up' ? 'دروستکردنی هەژمار' : 'نوێکردنەوەی وشەی نهێنی'}
             </button>
+
+            {mode === 'sign-in' && (
+              <button
+                type="button"
+                onClick={() => void signInWithGoogleAccount()}
+                disabled={busy}
+                className="min-h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="inline-flex items-center justify-center gap-3">
+                  <span aria-hidden="true" className="grid size-7 place-items-center rounded-full border border-slate-200 bg-white text-[11px] font-black">
+                    G
+                  </span>
+                  چوونەژوورەوە بە Google
+                </span>
+              </button>
+            )}
 
             {mode === 'sign-up' && (
               <>
