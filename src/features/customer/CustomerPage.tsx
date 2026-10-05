@@ -95,13 +95,44 @@ export default function CustomerPage() {
 }
 
 function Overview() {
+  const { profile } = useAuth();
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    Promise.all([listCustomerOrders(null, 100), listFavoriteProducts(100)])
+      .then(([orders, favorites]) => {
+        if (cancelled) return;
+        setOrderCount(orders.length);
+        setFavoriteCount(favorites.length);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "نەتوانرا KPI ـەکانی account باربکرێن.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const formatCount = (value: number | null) => value == null ? "—" : new Intl.NumberFormat("ku-IQ").format(value);
+  const formatMoney = (value: number | null | undefined) => value == null ? "— IQD" : new Intl.NumberFormat("ku-IQ", { maximumFractionDigits: 0 }).format(Number(value)) + " IQD";
+
   return (
     <div className="space-y-5">
+      {loadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{loadError}</div> : null}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="ئۆردەرەکان" value="—" detail="داتا لە Supabase دەهێنرێت" Icon={ClipboardIcon} href="#account/orders" />
-        <MetricCard label="دڵخوازەکان" value="—" detail="لیستی سەیڤ کراو" Icon={HeartFillIcon} href="#account/wishlist" />
-        <MetricCard label="جزدان" value="— IQD" detail="بڕی ڕاستەقینە لە backend" Icon={WalletIcon} href="#account/wallet" />
-        <MetricCard label="D_SH Points" value="—" detail="خاڵی بەکارهێنەر" Icon={CoinIcon} href="#account/points" />
+        <MetricCard label="ئۆردەرەکان" value={loading ? "…" : formatCount(orderCount)} detail="کۆی order ـەکانی account" Icon={ClipboardIcon} href="#account/orders" />
+        <MetricCard label="دڵخوازەکان" value={loading ? "…" : formatCount(favoriteCount)} detail="کۆی بەرهەمە سەیڤکراوەکان" Icon={HeartFillIcon} href="#account/wishlist" />
+        <MetricCard label="جزدان" value={formatMoney(profile?.wallet_balance_iqd)} detail="بڕی ڕاستەقینەی profile" Icon={WalletIcon} href="#account/wallet" />
+        <MetricCard label="D_SH Points" value={formatCount(Number(profile?.d_sh_points ?? 0))} detail="خاڵی ئێستای account" Icon={CoinIcon} href="#account/points" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]">
