@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { resolveProductImageUrl } from './storageApi';
 import type { MarketplaceFilters, ProductDetails, ProductSummary } from '../marketplace/catalog';
 
 export type CatalogCategory = {
@@ -105,7 +106,7 @@ function toSummary(row: ProductRow): ProductSummary {
     image: firstImage
       ? {
           id: firstImage.id,
-          url: '',
+          url: resolveProductImageUrl(firstImage.storage_path),
           alt: localizeCkb(firstImage.alt_ckb ?? '', firstImage.alt_ar ?? '', firstImage.alt_en ?? ''),
         }
       : null,
@@ -162,7 +163,7 @@ function fromGlobalSearch(row: GlobalSearchResponse['products'][number]): Produc
     priceIqd: Number(row.base_price_iqd),
     compareAtIqd: row.compare_at_iqd === null ? null : Number(row.compare_at_iqd),
     currency: 'IQD', rating: row.rating === null ? null : Number(row.rating), reviewCount: row.review_count,
-    image: row.image_storage_path ? { id: `${row.id}:primary`, url: '', alt: localizeCkb(row.name_ckb, row.name_ar, row.name_en) } : null,
+    image: row.image_storage_path ? { id: `${row.id}:primary`, url: resolveProductImageUrl(row.image_storage_path), alt: localizeCkb(row.name_ckb, row.name_ar, row.name_en) } : null,
     vendorName: localizeCkb(row.vendor_name_ckb ?? '', row.vendor_name_ar ?? '', row.vendor_name_en ?? '') || null,
     categoryName: localizeCkb(row.category_name_ckb ?? '', row.category_name_ar ?? '', row.category_name_en ?? '') || null,
     badge: row.is_in_stock ? null : 'نەماوە',
@@ -262,7 +263,7 @@ export async function getProductDetails(productId: string): Promise<ProductDetai
     description: localizeCkb(row.description_ckb ?? '', row.description_ar ?? '', row.description_en ?? ''),
     images: [...(row.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((image) => ({
       id: image.id,
-      url: '',
+      url: resolveProductImageUrl(image.storage_path),
       alt: localizeCkb(image.alt_ckb ?? '', image.alt_ar ?? '', image.alt_en ?? ''),
     })),
     variants: (row.product_variants ?? []).filter((variant) => variant.is_active).map((variant) => ({

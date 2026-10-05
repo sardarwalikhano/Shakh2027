@@ -203,7 +203,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .channel(`auth-identity:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${userId}` }, refresh)
-      .subscribe();
+      .subscribe((status, subscriptionError) => {
+        if (status === 'SUBSCRIBED') return;
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          const message = subscriptionError instanceof Error ? subscriptionError.message : 'Auth realtime sync بەردەست نییە؛ identity لە refreshی دواتر نوێ دەکرێتەوە.';
+          if (!cancelled) setIdentityError(message);
+        }
+      });
 
     return () => {
       cancelled = true;

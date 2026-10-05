@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import type { CartItem } from '../shopping/models';
+import { resolveProductImageUrl } from './storageApi';
 
 type CartRow = {
   id: string;
@@ -21,6 +22,7 @@ type CartRow = {
       name_ar: string;
       name_en: string;
       vendors: { name_ckb: string; name_ar: string; name_en: string } | null;
+      product_images: Array<{ storage_path: string; sort_order: number }> | null;
     } | null;
   } | null;
 };
@@ -55,7 +57,8 @@ export async function getMyCart(): Promise<CartItem[]> {
           name_ckb,
           name_ar,
           name_en,
-          vendors(name_ckb,name_ar,name_en,status)
+          vendors(name_ckb,name_ar,name_en,status),
+          product_images(storage_path,sort_order)
         )
       )
     `)
@@ -69,6 +72,7 @@ export async function getMyCart(): Promise<CartItem[]> {
       const variant = row.product_variants!;
       const product = variant.products!;
       const vendor = product.vendors;
+      const firstImage = [...(product.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
       return {
         id: row.id,
         productId: product.id,
@@ -77,6 +81,7 @@ export async function getMyCart(): Promise<CartItem[]> {
         title: localizeCkb(product.name_ckb, product.name_ar, product.name_en),
         sellerName: vendor ? localizeCkb(vendor.name_ckb, vendor.name_ar, vendor.name_en) : 'فرۆشیار',
         unitPriceIqd: Number(variant.price_iqd),
+        imageUrl: resolveProductImageUrl(firstImage?.storage_path),
         quantity: row.quantity,
         variantLabel: localizeCkb(variant.label_ckb, variant.label_ar, variant.label_en),
         availableQuantity: variant.inventory

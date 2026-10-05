@@ -54,7 +54,9 @@ export default function CartPanel({ items, onItemsChange }: { items: CartItem[];
       <div className="divide-y divide-slate-100">
         {items.map((item) => (
           <article key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100" />
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+              {item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+            </div>
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-black text-slate-900">{item.title}</h3>
               <p className="mt-1 text-xs font-semibold text-slate-400">{item.sellerName}</p>
