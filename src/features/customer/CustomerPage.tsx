@@ -10,6 +10,7 @@ import { CUSTOMER_SECTION_LABELS } from "./models";
 import { listFavoriteProducts, toggleProductFavorite, type FavoriteProduct } from "../commerce/favoritesApi";
 import { createProductReview, listReviewableItems, type ReviewableItem } from "../commerce/reviewsApi";
 import { getOrderDetails, listCustomerOrders, type ManagedOrderSummary, type OrderDetail } from "../commerce/orderManagementApi";
+import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications, type NotificationRow } from "../notifications/notificationsApi";
 import { useAuth } from "../auth/AuthContext";
 
 function resolveSection(): CustomerSection {
@@ -311,8 +312,127 @@ function Reviews() {
   );
 }
 
+function notificationCategoryLabel(category: NotificationRow["category"]) {
+  const labels: Record<NotificationRow["category"], string> = {
+    order: "ئۆردەر",
+    payment: "پارەدان",
+    delivery: "گەیاندن",
+    support: "پشتیوانی",
+    security: "ئاسایش",
+    marketing: "مارکێتینگ",
+    system: "سیستەم",
+  };
+  return labels[category];
+}
+
+function notificationPriorityClass(priority: NotificationRow["priority"]) {
+  if (priority === "urgent") return "bg-rose-50 text-rose-700";
+  if (priority === "high") return "bg-amber-50 text-amber-700";
+  return "bg-slate-100 text-slate-500";
+}
+
 function Notifications() {
-  return <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7"><SectionHeader eyebrow="NOTIFICATIONS" title="ئاگادارکردنەوەکان" body="Order updates، promotion alerts، support events و security notices لێرە کۆدەکرێنەوە." /><EmptyState eyebrow="NO NOTIFICATIONS" title="ئاگادارکردنەوەی نوێ نییە" body="کاتێک event ـێکی پەیوەندیدار بۆ account ـەکەت ڕووبدات، لێرە دەردەکەوێت." /></div>;
+  const { user } = useAuth();
+  const [items, setItems] = useState<NotificationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    void getNotifications().then((next) => {
+      if (!cancelled) setItems(next);
+    }).catch((err: unknown) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : "نەتوانرا ئاگادارکردنەوەکان باربکرێن.");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    const channel = subscribeToNotifications(user.id, (row) => {
+      setItems((current) => [row, ...current.filter((item) => item.id !== row.id)].slice(0, 50));
+    });
+
+    return () => {
+      cancelled = true;
+      void channel.unsubscribe();
+    };
+  }, [user]);
+
+  async function read(id: string) {
+    try {
+      await markNotificationRead(id);
+      setItems((current) => current.map((item) => item.id === id ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "نەتوانرا ئاگادارکردنەوەکە خوێندراوە نیشان بدرێت.");
+    }
+  }
+
+  async function readAll() {
+    try {
+      await markAllNotificationsRead();
+      const now = new Date().toISOString();
+      setItems((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "نەتوانرا هەموو ئاگادارکردنەوەکان خوێندراوە بکرێن.");
+    }
+  }
+
+  async function openNotification(item: NotificationRow) {
+    await read(item.id);
+    if (item.action_hash) window.location.hash = item.action_hash;
+  }
+
+  const unread = items.filter((item) => !item.read_at).length;
+
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <SectionHeader eyebrow="NOTIFICATIONS" title="ئاگادارکردنەوەکان" body="Order updates، promotion alerts، support events و security notices لێرە لە Supabase ـەوە کۆدەکرێنەوە." />
+        {unread > 0 ? <button type="button" onClick={() => void readAll()} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:border-orange-200 hover:bg-orange-50">هەمووی خوێندراوە</button> : null}
+      </div>
+
+      {error ? <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{error}</div> : null}
+      {loading ? <div className="rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-500">ئاگادارکردنەوەکان بار دەکرێن...</div> : null}
+
+      {!loading && items.length === 0 ? (
+        <EmptyState eyebrow="NO NOTIFICATIONS" title="ئاگادارکردنەوەی نوێ نییە" body="کاتێک event ـێکی پەیوەندیدار بۆ account ـەکەت ڕووبدات، لێرە بە شێوەی realtime دەردەکەوێت." />
+      ) : null}
+
+      {!loading && items.length > 0 ? (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => void openNotification(item)}
+              className={`w-full rounded-2xl border p-4 text-right transition hover:border-orange-200 hover:bg-orange-50/40 ${item.read_at ? "border-slate-100 bg-white" : "border-orange-100 bg-orange-50/25"}`}
+            >
+              <div className="flex items-start gap-3">
+                <span className={`mt-0.5 rounded-full px-2.5 py-1 text-[9px] font-black ${notificationPriorityClass(item.priority)}`}>{item.priority}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-black text-slate-950">{item.title_ckb || item.title_ar || item.title_en}</p>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-black text-slate-500">{notificationCategoryLabel(item.category)}</span>
+                    {!item.read_at ? <span className="h-2 w-2 rounded-full bg-orange-500" aria-label="نوێ" /> : null}
+                  </div>
+                  {item.body_ckb || item.body_ar || item.body_en ? <p className="mt-2 text-[11px] font-semibold leading-6 text-slate-500">{item.body_ckb || item.body_ar || item.body_en}</p> : null}
+                  <p className="mt-2 text-[9px] font-bold text-slate-400">{new Intl.DateTimeFormat("ku-IQ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.created_at))}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function Wallet() {
