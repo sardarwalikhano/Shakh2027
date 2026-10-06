@@ -26,11 +26,36 @@ function validatePassword(password: string) {
   return null;
 }
 
+function decodeAuthParam(value: string) {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, ' '));
+  } catch {
+    return value.replace(/\+/g, ' ');
+  }
+}
+
+function readAuthCallbackError() {
+  const sources = [
+    new URLSearchParams(window.location.search),
+    new URLSearchParams(window.location.hash.slice(1)),
+  ];
+
+  for (const params of sources) {
+    const value = params.get('error_description') || params.get('error_code') || params.get('error');
+    if (value) return decodeAuthParam(value);
+  }
+
+  return null;
+}
+
 function friendlyAuthError(error: unknown) {
-  const message = error instanceof Error ? error.message : '';
+  const message = error instanceof Error ? error.message : String(error ?? '');
   const normalized = message.toLowerCase();
 
   if (normalized.includes('provider is not enabled') || normalized.includes('unsupported provider')) return 'چوونەژوورەوە بە Google لە Supabase چالاک نەکراوە یان ڕێکخستنی OAuth تەواو نییە.';
+  if (normalized.includes('otp_expired') || normalized.includes('token has expired') || normalized.includes('one-time token not found') || normalized.includes('invalid token')) return 'ئەم لینکی authentication کۆن یان بەکارهاتووە. تکایە لینکێکی نوێ داوا بکە.';
+  if (normalized.includes('code verifier') || normalized.includes('pkce')) return 'سێشنی authentication بە دروستی نەگەڕایەوە. تکایە لاپەڕەکە نوێ بکەوە و دووبارە هەوڵ بدەرەوە.';
+  if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
   if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
   if (normalized.includes('invalid login credentials')) return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.';
   if (normalized.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە. تکایە پەیامی پشتڕاستکردنەوەکە بکەرەوە.';
