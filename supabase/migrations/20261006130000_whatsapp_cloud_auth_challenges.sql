@@ -28,7 +28,7 @@ create index if not exists idx_whatsapp_auth_challenges_user
   on private.whatsapp_auth_challenges(user_id, purpose, created_at desc);
 
 create index if not exists idx_whatsapp_auth_challenges_active
-  on private.whatsapp_auth_challenges(phone_e164, purpose, used_at, expires_at);
+  on private.whatsapp_auth_challenges(phone_e164, purpose, used_at, otp_expires_at);
 
 create or replace function public.create_whatsapp_challenge(
   p_purpose text,
