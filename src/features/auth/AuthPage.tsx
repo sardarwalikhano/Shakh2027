@@ -1,22 +1,16 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
-  normalizeIraqPhone,
   requestPasswordReset,
-  requestWhatsAppOtp,
   resendSignupConfirmation,
-  signInWithGoogle,
   signInWithPassword,
   signOut,
-  signOutAllSessions,
   signUpWithPassword,
   updatePassword,
-  verifyWhatsAppOtp,
 } from './auth';
 import { useAuth } from './AuthContext';
 
-function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' | 'email-confirmation' | 'recover-whatsapp' {
+function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' | 'email-confirmation' {
   const hashMode = window.location.hash.split('/')[1];
-  if (hashMode === 'sign-up' || hashMode === 'reset-password' || hashMode === 'email-confirmation' || hashMode === 'recover-whatsapp') return hashMode;
+  if (hashMode === 'sign-up' || hashMode === 'reset-password' || hashMode === 'email-confirmation') return hashMode;
 
   const query = new URLSearchParams(window.location.search);
   if (query.get('auth') === 'password-recovery') return 'reset-password';
@@ -56,10 +50,9 @@ function friendlyAuthError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
   const normalized = message.toLowerCase();
 
-  if (normalized.includes('provider is not enabled') || normalized.includes('unsupported provider')) return 'چوونەژوورەوە بە Google لە Supabase چالاک نەکراوە یان ڕێکخستنی OAuth تەواو نییە.';
   if (normalized.includes('otp_expired') || normalized.includes('token has expired') || normalized.includes('one-time token not found') || normalized.includes('invalid token')) return 'ئەم لینکی authentication کۆن یان بەکارهاتووە. تکایە لینکێکی نوێ داوا بکە.';
   if (normalized.includes('code verifier') || normalized.includes('pkce')) return 'سێشنی authentication بە دروستی نەگەڕایەوە. تکایە لاپەڕەکە نوێ بکەوە و دووبارە هەوڵ بدەرەوە.';
-  if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
+  if (normalized.includes('access_denied')) return 'داواکارییەکە ڕەتکرایەوە.';
   if (normalized.includes('error sending recovery email') || normalized.includes('failed to send recovery email')) return 'ناردنی ئیمەیڵی گەڕاندنەوە سەرکەوتوو نەبوو. ڕێکخستنی SMTP و دۆمەینی نێرەر لە Supabase و Resend پشکنە.';
   if (normalized.includes('invalid login credentials')) return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.';
   if (normalized.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە. تکایە پەیامی پشتڕاستکردنەوەکە بکەرەوە.';
@@ -87,11 +80,6 @@ export default function AuthPage() {
   const [resending, setResending] = useState(false);
   const [confirmationCooldown, setConfirmationCooldown] = useState(0);
   const [resetCooldown, setResetCooldown] = useState(0);
-  const [whatsappPhone, setWhatsappPhone] = useState('');
-  const [whatsappOtp, setWhatsappOtp] = useState('');
-  const [whatsappStep, setWhatsappStep] = useState<'phone' | 'otp' | 'password'>('phone');
-  const [whatsappCooldown, setWhatsappCooldown] = useState(0);
-  const [whatsappBusy, setWhatsappBusy] = useState(false);
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,11 +118,6 @@ export default function AuthPage() {
     return () => window.clearTimeout(timer);
   }, [resetCooldown]);
 
-  useEffect(() => {
-    if (whatsappCooldown <= 0) return;
-    const timer = window.setTimeout(() => setWhatsappCooldown((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [whatsappCooldown]);
 
   useEffect(() => {
     if (user && (mode === 'email-confirmation' || mode === 'sign-in')) window.location.hash = '#market';
@@ -146,21 +129,6 @@ export default function AuthPage() {
     setMode('sign-in');
     setPassword('');
     setConfirmPassword('');
-    setWhatsappPhone('');
-    setWhatsappOtp('');
-    setWhatsappStep('phone');
-    setWhatsappCooldown(0);
-    setWhatsappBusy(false);
-  };
-
-  const navigateToWhatsAppRecovery = () => {
-    window.history.replaceState({}, '', window.location.pathname);
-    window.location.hash = '#auth/recover-whatsapp';
-    setMode('recover-whatsapp');
-    setError(null);
-    setMessage(null);
-    setWhatsappStep('phone');
-    setWhatsappOtp('');
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -258,113 +226,6 @@ export default function AuthPage() {
     }
   };
 
-  const signInWithGoogleAccount = async () => {
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-    setShowResendConfirmation(false);
-
-    try {
-      const { error: googleError } = await signInWithGoogle();
-      if (googleError) throw googleError;
-    } catch (caught) {
-      setError(friendlyAuthError(caught));
-      setBusy(false);
-    }
-  };
-
-  const startWhatsAppRecovery = async () => {
-    if (whatsappBusy) return;
-
-    let normalizedPhone: string;
-    try {
-      normalizedPhone = normalizeIraqPhone(whatsappPhone);
-    } catch (caught) {
-      setError(friendlyAuthError(caught));
-      return;
-    }
-
-    if (whatsappCooldown > 0) {
-      setError('تکایە ' + whatsappCooldown + ' چرکە چاوەڕێ بکە.');
-      return;
-    }
-
-    setWhatsappBusy(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const { error: otpError } = await requestWhatsAppOtp(normalizedPhone);
-      if (otpError) throw otpError;
-      setWhatsappPhone(normalizedPhone);
-      setWhatsappStep('otp');
-      setWhatsappOtp('');
-      setWhatsappCooldown(60);
-      setMessage('کۆدی ٦ ژمارەیی بۆ WhatsApp ـی ئەم ژمارەیە نێردرا.');
-    } catch (caught) {
-      const friendlyMessage = friendlyAuthError(caught);
-      setError(friendlyMessage);
-      const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
-      if (normalized.includes('rate limit') || normalized.includes('after ')) setWhatsappCooldown(60);
-    } finally {
-      setWhatsappBusy(false);
-    }
-  };
-
-  const verifyWhatsAppRecoveryCode = async () => {
-    if (whatsappBusy) return;
-    if (!/^\d{6}$/.test(whatsappOtp.trim())) {
-      setError('کۆدی WhatsApp دەبێت ٦ ژمارە بێت.');
-      return;
-    }
-
-    setWhatsappBusy(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const { data, error: verifyError } = await verifyWhatsAppOtp(whatsappPhone, whatsappOtp);
-      if (verifyError) throw verifyError;
-      if (!data.session) throw new Error('سێشنی authentication دروست نەبوو.');
-      setWhatsappStep('password');
-      setWhatsappOtp('');
-      setMessage('ژمارەکە پشتڕاستکرایەوە. ئێستا وشەی نهێنییەکی نوێ دابنێ.');
-    } catch (caught) {
-      setError(friendlyAuthError(caught));
-    } finally {
-      setWhatsappBusy(false);
-    }
-  };
-
-  const finishWhatsAppRecovery = async () => {
-    if (whatsappBusy) return;
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('دوو وشەی نهێنییەکە وەک یەک نین.');
-      return;
-    }
-
-    setWhatsappBusy(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const { error: updateError } = await updatePassword(password);
-      if (updateError) throw updateError;
-      const { error: signOutError } = await signOutAllSessions();
-      if (signOutError) throw signOutError;
-      navigateToSignIn();
-      setMessage('وشەی نهێنی بە سەرکەوتوویی نوێکرایەوە و هەموو session ـەکان داخراون.');
-    } catch (caught) {
-      setError(friendlyAuthError(caught));
-    } finally {
-      setWhatsappBusy(false);
-    }
-  };
-
   const resendConfirmation = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -407,13 +268,13 @@ export default function AuthPage() {
             <div>
               <p className="text-[10px] font-black uppercase tracking-[.18em] text-orange-600">ACCOUNT</p>
               <h2 className="mt-2 text-2xl font-black text-slate-950">
-                {mode === 'sign-in' ? 'بچۆ ژوورەوە' : mode === 'sign-up' ? 'هەژمار دروست بکە' : mode === 'recover-whatsapp' ? 'گەڕانەوەی وشەی نهێنی بە WhatsApp' : 'وشەی نهێنی نوێ بکەوە'}
+                {mode === 'sign-in' ? 'بچۆ ژوورەوە' : mode === 'sign-up' ? 'هەژمار دروست بکە' : 'وشەی نهێنی نوێ بکەوە'}
               </h2>
             </div>
             <a href="#market" className="text-xs font-black text-slate-400 hover:text-slate-700">بۆ بازار</a>
           </div>
 
-          {mode !== 'email-confirmation' && mode !== 'recover-whatsapp' && (
+          {mode !== 'email-confirmation' && (
           <form onSubmit={submit} className="grid gap-4">
             {mode === 'sign-up' && <>
               <Field label="ناوی تەواو" value={fullName} onChange={setFullName} required autoComplete="name" />
@@ -454,22 +315,6 @@ export default function AuthPage() {
             <button disabled={busy} className="mt-1 min-h-12 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60" type="submit">
               {busy ? 'چاوەڕوان بە...' : mode === 'sign-in' ? 'چوونەژوورەوە' : mode === 'sign-up' ? 'دروستکردنی هەژمار' : 'نوێکردنەوەی وشەی نهێنی'}
             </button>
-
-            {mode === 'sign-in' && (
-              <button
-                type="button"
-                onClick={() => void signInWithGoogleAccount()}
-                disabled={busy}
-                className="min-h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="inline-flex items-center justify-center gap-3">
-                  <span aria-hidden="true" className="grid size-7 place-items-center rounded-full border border-slate-200 bg-white text-[11px] font-black">
-                    G
-                  </span>
-                  چوونەژوورەوە بە Google
-                </span>
-              </button>
-            )}
 
             {mode === 'sign-up' && (
               <>
@@ -517,9 +362,7 @@ export default function AuthPage() {
                 <button type="button" onClick={() => void forgotPassword()} disabled={busy || !email.trim() || resetCooldown > 0} className="text-xs font-black text-slate-500 hover:text-orange-600 disabled:opacity-40">
                   {resetCooldown > 0 ? 'دووبارە داواکردن (' + resetCooldown + ')' : 'وشەی نهێنیت لەبیرچووە؟'}
                 </button>
-                <button type="button" onClick={navigateToWhatsAppRecovery} disabled={busy} className="text-xs font-black text-emerald-700 hover:text-emerald-800 disabled:opacity-40">
-                  گەڕانەوەی وشەی نهێنی بە WhatsApp
-                </button>
+
                 <a href="#auth/sign-up" className="text-xs font-black text-orange-600">هەژمارت نییە؟</a>
               </div>
               {showResendConfirmation && (
@@ -536,59 +379,6 @@ export default function AuthPage() {
             </div>
           )}
 
-
-          {mode === 'recover-whatsapp' && (
-            <section className="grid gap-5 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-5 sm:p-6">
-              <div>
-                <p className="text-xs font-black text-emerald-700">WHATSAPP RECOVERY</p>
-                <h3 className="mt-2 text-lg font-black text-slate-950">وشەی نهێنی بە WhatsApp بگۆڕە</h3>
-                <p className="mt-2 text-xs font-semibold leading-6 text-slate-600">
-                  ژمارەکە دەبێت پێشتر لە Supabase Auth ـی ئەم هەژمارەیە پشتڕاستکرابێت. کۆدی ٦ ژمارەیی پشتڕاست بکەوە، پاشان وشەی نهێنیی نوێ دابنێ.
-                </p>
-              </div>
-
-              {error && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold leading-6 text-red-700">{error}</div>}
-              {message && <div role="status" className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-xs font-semibold leading-6 text-emerald-700">{message}</div>}
-
-              {whatsappStep === 'phone' && (
-                <>
-                  <Field label="ژمارەی WhatsApp" value={whatsappPhone} onChange={setWhatsappPhone} required type="tel" autoComplete="tel" />
-                  <p className="text-[11px] font-semibold leading-5 text-slate-500">فۆرماتی عێراق: 07XXXXXXXXX یان +9647XXXXXXXXX.</p>
-                  <button type="button" onClick={() => void startWhatsAppRecovery()} disabled={whatsappBusy || !whatsappPhone.trim() || whatsappCooldown > 0} className="min-h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
-                    {whatsappBusy ? 'کۆد دەنێردرێت...' : whatsappCooldown > 0 ? 'دووبارە ناردن (' + whatsappCooldown + ')' : 'ناردنی کۆد بە WhatsApp'}
-                  </button>
-                </>
-              )}
-
-              {whatsappStep === 'otp' && (
-                <>
-                  <Field label="کۆدی WhatsApp" value={whatsappOtp} onChange={(value) => setWhatsappOtp(value.replace(/\D/g, '').slice(0, 6))} required type="text" autoComplete="one-time-code" />
-                  <p className="text-[11px] font-semibold leading-5 text-slate-500">کۆدی ٦ ژمارەیی لە WhatsApp بنووسە.</p>
-                  <button type="button" onClick={() => void verifyWhatsAppRecoveryCode()} disabled={whatsappBusy || whatsappOtp.length !== 6} className="min-h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
-                    {whatsappBusy ? 'پشتڕاست دەکرێت...' : 'پشتڕاستکردنەوەی کۆد'}
-                  </button>
-                  <button type="button" onClick={() => { setWhatsappStep('phone'); setWhatsappOtp(''); setError(null); setMessage(null); }} disabled={whatsappBusy} className="text-xs font-black text-slate-500 hover:text-emerald-700">
-                    گۆڕینی ژمارە
-                  </button>
-                </>
-              )}
-
-              {whatsappStep === 'password' && (
-                <>
-                  <Field label="وشەی نهێنیی نوێ" value={password} onChange={setPassword} required type="password" autoComplete="new-password" />
-                  <Field label="دووبارە وشەی نهێنی" value={confirmPassword} onChange={setConfirmPassword} required type="password" autoComplete="new-password" />
-                  <p className="text-[11px] font-semibold leading-5 text-slate-500">لانیکەم ٨ پیت. دوای گۆڕین، هەموو session ـەکان دادەخرێنەوە.</p>
-                  <button type="button" onClick={() => void finishWhatsAppRecovery()} disabled={whatsappBusy} className="min-h-12 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
-                    {whatsappBusy ? 'وشەی نهێنی نوێ دەکرێت...' : 'نوێکردنەوەی وشەی نهێنی'}
-                  </button>
-                </>
-              )}
-
-              <button type="button" onClick={navigateToSignIn} disabled={whatsappBusy} className="text-xs font-black text-slate-500 hover:text-orange-600">
-                بگەڕێوە بۆ چوونەژوورەوە
-              </button>
-            </section>
-          )}
 
           {mode === 'reset-password' && (
             <div className="mt-4 grid gap-3 text-center text-xs font-black text-slate-500">
