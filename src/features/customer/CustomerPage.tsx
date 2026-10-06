@@ -12,6 +12,7 @@ import { createProductReview, listReviewableItems, type ReviewableItem } from ".
 import { getOrderDetails, listCustomerOrders, type ManagedOrderSummary, type OrderDetail } from "../commerce/orderManagementApi";
 import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications, type NotificationRow } from "../notifications/notificationsApi";
 import { useAuth } from "../auth/AuthContext";
+import { signOutAllSessions } from "../auth/auth";
 
 function resolveSection(): CustomerSection {
   const value = window.location.hash.split("/")[1] as CustomerSection | undefined;
