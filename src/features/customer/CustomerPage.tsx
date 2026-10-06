@@ -12,7 +12,12 @@ import { createProductReview, listReviewableItems, type ReviewableItem } from ".
 import { getOrderDetails, listCustomerOrders, type ManagedOrderSummary, type OrderDetail } from "../commerce/orderManagementApi";
 import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications, type NotificationRow } from "../notifications/notificationsApi";
 import { useAuth } from "../auth/AuthContext";
-import { signOutAllSessions } from "../auth/auth";
+import {
+  normalizeIraqPhone,
+  requestWhatsAppPhoneEnrollment,
+  signOutAllSessions,
+  verifyWhatsAppPhoneEnrollment,
+} from "../auth/auth";
 
 function resolveSection(): CustomerSection {
   const value = window.location.hash.split("/")[1] as CustomerSection | undefined;
@@ -540,6 +545,13 @@ function Profile() {
   const { user, profile, roles } = useAuth();
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityError, setSecurityError] = useState<string | null>(null);
+  const [whatsappPhone, setWhatsappPhone] = useState(user?.phone ?? profile?.phone ?? "");
+  const [whatsappOtp, setWhatsappOtp] = useState("");
+  const [whatsappRequestId, setWhatsappRequestId] = useState("");
+  const [whatsappStep, setWhatsappStep] = useState<"phone" | "otp">("phone");
+  const [whatsappBusy, setWhatsappBusy] = useState(false);
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
+  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
   const languageLabel: Record<"ckb" | "ar" | "en", string> = {
     ckb: "کوردی — RTL",
     ar: "العربية — RTL",
@@ -549,6 +561,63 @@ function Profile() {
   const provider = String(user?.app_metadata?.provider ?? "email");
   const providerLabel = provider === "google" ? "Google" : "ئیمەیڵ و وشەی نهێنی";
   const emailStatus = user?.email_confirmed_at ? "پشتڕاستکراوە" : "هێشتا پشتڕاست نەکراوەتەوە";
+
+  async function requestWhatsAppPhoneCode() {
+    if (whatsappBusy) return;
+
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeIraqPhone(whatsappPhone);
+    } catch (caught) {
+      setWhatsappError(caught instanceof Error ? caught.message : "ژمارەی مۆبایل دروست نییە.");
+      return;
+    }
+
+    setWhatsappBusy(true);
+    setWhatsappError(null);
+    setWhatsappMessage(null);
+
+    try {
+      const { data, error } = await requestWhatsAppPhoneEnrollment(normalizedPhone);
+      if (error) throw error;
+      if (!data?.requestId) throw new Error("whatsapp_auth_failed");
+      setWhatsappPhone(normalizedPhone);
+      setWhatsappRequestId(String(data.requestId));
+      setWhatsappOtp("");
+      setWhatsappStep("otp");
+      setWhatsappMessage("کۆدی پشتڕاستکردنەوە بۆ WhatsApp نێردرا.");
+    } catch (caught) {
+      setWhatsappError(caught instanceof Error ? caught.message : "نەتوانرا کۆدی WhatsApp بنێردرێت.");
+    } finally {
+      setWhatsappBusy(false);
+    }
+  }
+
+  async function verifyWhatsAppPhoneCode() {
+    if (whatsappBusy || !whatsappRequestId) return;
+    if (!/^\d{6}$/.test(whatsappOtp.trim())) {
+      setWhatsappError("کۆد دەبێت ٦ ژمارە بێت.");
+      return;
+    }
+
+    setWhatsappBusy(true);
+    setWhatsappError(null);
+    setWhatsappMessage(null);
+
+    try {
+      const { error } = await verifyWhatsAppPhoneEnrollment(whatsappRequestId, whatsappOtp);
+      if (error) throw error;
+      await supabase.auth.refreshSession();
+      setWhatsappStep("phone");
+      setWhatsappRequestId("");
+      setWhatsappOtp("");
+      setWhatsappMessage("ژمارەی WhatsApp بە سەرکەوتوویی پشتڕاستکرایەوە.");
+    } catch (caught) {
+      setWhatsappError(caught instanceof Error ? caught.message : "نەتوانرا ژمارەکە پشتڕاست بکرێتەوە.");
+    } finally {
+      setWhatsappBusy(false);
+    }
+  }
 
   async function signOutEverywhere() {
     if (securityBusy) return;
@@ -588,6 +657,78 @@ function Profile() {
         body="زانیاریی پڕۆفایل بە RLS لە Supabase کۆنترۆڵ دەکرێت و تەنها هەژمارەکەت یان دەسەڵاتی ڕێگەپێدراو دەتوانێت بەشی پەیوەندیدار ببینێت. وشەی نهێنی لە profiles ـدا هەڵناگیرێت؛ Supabase Auth بەڕێوەی دەبات."
       />
       {securityError ? <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{securityError}</div> : null}
+      <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">WHATSAPP SECURITY</p>
+            <p className="mt-2 text-sm font-black text-slate-900">
+              {user?.phone_confirmed_at ? "ژمارەی WhatsApp پشتڕاستکراوە" : "ژمارەی WhatsApp پشتڕاست بکەوە"}
+            </p>
+            <p className="mt-1 text-[11px] font-semibold leading-6 text-slate-500">
+              {user?.phone_confirmed_at
+                ? "ژمارەی پشتڕاستکراو: " + (user.phone ?? profile?.phone ?? "—")
+                : "ئەم ژمارەیە دواتر بۆ گەڕانەوەی وشەی نهێنی بە WhatsApp بەکاردێت."}
+            </p>
+          </div>
+          {!user?.phone_confirmed_at && (
+            <div className="grid gap-2 lg:min-w-[420px] lg:grid-cols-[1fr_auto]">
+              <input
+                value={whatsappPhone}
+                onChange={(event) => setWhatsappPhone(event.target.value)}
+                placeholder="07XXXXXXXXX یان +9647XXXXXXXXX"
+                type="tel"
+                autoComplete="tel"
+                disabled={whatsappStep === "otp" || whatsappBusy}
+                className="min-h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10"
+              />
+              {whatsappStep === "phone" ? (
+                <button
+                  type="button"
+                  onClick={() => void requestWhatsAppPhoneCode()}
+                  disabled={whatsappBusy || !whatsappPhone.trim()}
+                  className="min-h-11 rounded-2xl bg-emerald-600 px-4 text-xs font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {whatsappBusy ? "کۆد دەنێردرێت..." : "ناردنی کۆد"}
+                </button>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto] lg:col-span-2">
+                  <input
+                    value={whatsappOtp}
+                    onChange={(event) => setWhatsappOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="کۆدی ٦ ژمارەیی"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    disabled={whatsappBusy}
+                    className="min-h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void verifyWhatsAppPhoneCode()}
+                    disabled={whatsappBusy || whatsappOtp.length !== 6}
+                    className="min-h-11 rounded-2xl bg-slate-950 px-4 text-xs font-black text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {whatsappBusy ? "پشتڕاست دەکرێت..." : "پشتڕاستکردنەوە"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {whatsappError ? <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700">{whatsappError}</p> : null}
+        {whatsappMessage ? <p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-bold text-emerald-700">{whatsappMessage}</p> : null}
+        {whatsappStep === "otp" ? (
+          <button
+            type="button"
+            onClick={() => { setWhatsappStep("phone"); setWhatsappRequestId(""); setWhatsappOtp(""); setWhatsappError(null); setWhatsappMessage(null); }}
+            disabled={whatsappBusy}
+            className="mt-2 text-[11px] font-black text-slate-500 hover:text-emerald-700 disabled:opacity-50"
+          >
+            گۆڕینی ژمارە
+          </button>
+        ) : null}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-slate-50 p-4">
           <p className="text-[10px] font-black text-slate-400">AUTH PROVIDER</p>
