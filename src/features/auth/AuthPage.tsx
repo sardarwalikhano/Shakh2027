@@ -299,9 +299,7 @@ export default function AuthPage() {
               <Field label="شار" value={city} onChange={setCity} required />
             </>}
 
-            {mode !== 'reset-password' && (
-              <Field label="ئیمەیڵ" value={email} onChange={setEmail} required type="email" autoComplete="email" />
-            )}
+            <Field label="ئیمەیڵ" value={email} onChange={setEmail} required type="email" autoComplete="email" />
 
             <Field
               label={mode === 'reset-password' ? 'وشەی نهێنیی نوێ' : 'وشەی نهێنی'}
