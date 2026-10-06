@@ -58,6 +58,30 @@ export async function requestPasswordReset(email: string) {
   });
 }
 
+export async function verifyAuthTokenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const tokenHash = params.get('token_hash');
+  const type = params.get('type');
+
+  if (!tokenHash || (type !== 'email' && type !== 'recovery')) {
+    return null;
+  }
+
+  const result = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type,
+  });
+
+  if (!result.error) {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('token_hash');
+    cleanUrl.searchParams.delete('type');
+    window.history.replaceState({}, '', cleanUrl.toString());
+  }
+
+  return result;
+}
+
 export async function updatePassword(password: string) {
   return supabase.auth.updateUser({ password });
 }
