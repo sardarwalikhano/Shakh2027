@@ -410,8 +410,18 @@ export default function AuthPage() {
           )}
 
           {mode === 'reset-password' && (
-            <div className="mt-4 text-center text-xs font-black text-slate-500">
-              گەڕانەوە بۆ <button type="button" onClick={navigateToSignIn} className="font-black text-orange-600">چوونەژوورەوە</button>
+            <div className="mt-4 grid gap-3 text-center text-xs font-black text-slate-500">
+              <button
+                type="button"
+                onClick={() => void forgotPassword()}
+                disabled={busy || !email.trim() || resetCooldown > 0}
+                className="text-orange-600 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {resetCooldown > 0 ? 'داواکارییەکی نوێ دوای ' + resetCooldown + ' چرکە' : 'لینکی نوێی گۆڕینی وشەی نهێنی داوا بکە'}
+              </button>
+              <div>
+                گەڕانەوە بۆ <button type="button" onClick={navigateToSignIn} className="font-black text-orange-600">چوونەژوورەوە</button>
+              </div>
             </div>
           )}
         </section>
