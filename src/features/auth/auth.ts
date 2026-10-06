@@ -38,23 +38,57 @@ export async function signInWithPassword(email: string, password: string): Promi
   });
 }
 
+async function invokeWhatsAppAuth(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('whatsapp-auth', { body });
+  if (error) return { data: null, error: new Error(error.message || 'whatsapp_auth_failed') };
+  if (data?.error) return { data: null, error: new Error(String(data.error)) };
+  return { data, error: null };
+}
+
 export async function requestWhatsAppOtp(phone: string) {
   const normalizedPhone = normalizeIraqPhone(phone);
-  return supabase.auth.signInWithOtp({
+  return invokeWhatsAppAuth({
+    action: 'request_recovery',
     phone: normalizedPhone,
-    options: {
-      channel: 'whatsapp',
-      shouldCreateUser: false,
-    },
   });
 }
 
-export async function verifyWhatsAppOtp(phone: string, token: string) {
+export async function verifyWhatsAppOtp(phone: string, token: string, requestId: string) {
   const normalizedPhone = normalizeIraqPhone(phone);
-  return supabase.auth.verifyOtp({
+  return invokeWhatsAppAuth({
+    action: 'verify_recovery',
     phone: normalizedPhone,
-    token: token.trim(),
-    type: 'sms',
+    otp: token.trim(),
+    requestId,
+  });
+}
+
+export async function resetPasswordWithWhatsApp(
+  requestId: string,
+  resetToken: string,
+  password: string,
+) {
+  return invokeWhatsAppAuth({
+    action: 'reset_password',
+    requestId,
+    resetToken,
+    password,
+  });
+}
+
+export async function requestWhatsAppPhoneEnrollment(phone: string) {
+  const normalizedPhone = normalizeIraqPhone(phone);
+  return invokeWhatsAppAuth({
+    action: 'request_phone_enrollment',
+    phone: normalizedPhone,
+  });
+}
+
+export async function verifyWhatsAppPhoneEnrollment(requestId: string, token: string) {
+  return invokeWhatsAppAuth({
+    action: 'verify_phone_enrollment',
+    requestId,
+    otp: token.trim(),
   });
 }
 
