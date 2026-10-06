@@ -90,11 +90,14 @@ export default function AuthPage() {
   const passwordError = useMemo(() => validatePassword(password), [password]);
 
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const oauthError = hashParams.get('error_description') || hashParams.get('error');
-    if (oauthError) {
-      setError(decodeURIComponent(oauthError.replace(/\+/g, ' ')));
-      window.history.replaceState({}, '', window.location.pathname + '?auth=google-error');
+    const callbackError = readAuthCallbackError();
+    if (callbackError) {
+      setMode('sign-in');
+      setError(friendlyAuthError(new Error(callbackError)));
+      setMessage(null);
+      setShowResendConfirmation(false);
+      window.history.replaceState({}, '', window.location.pathname);
+      window.location.hash = '#auth/sign-in';
     }
 
     const onLocationChange = () => setMode(resolveMode());
