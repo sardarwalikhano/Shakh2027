@@ -38,7 +38,10 @@ function resolveRoute() {
   if (
     queryAuth === "password-recovery" ||
     queryAuth === "email-confirmation" ||
+    queryParams.has("code") ||
     hashParams.get("type") === "recovery" ||
+    hashParams.has("access_token") ||
+    hashParams.has("refresh_token") ||
     hasAuthCallbackError
   ) return "auth";
   if (window.location.hash.startsWith("#auth")) return "auth";
