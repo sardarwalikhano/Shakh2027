@@ -8,9 +8,7 @@ const env = import.meta.env as ImportMetaEnv & {
 function authRedirectUrl(flow: 'email-confirmation' | 'password-recovery') {
   const configuredSiteUrl = env.VITE_PUBLIC_SITE_URL?.trim();
   const baseUrl = configuredSiteUrl || window.location.origin;
-  const url = new URL(window.location.pathname || '/', baseUrl);
-  url.search = '';
-  url.hash = '';
+  const url = new URL('/', baseUrl);
   url.searchParams.set('auth', flow);
   return url.toString();
 }
