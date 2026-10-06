@@ -56,20 +56,33 @@ async function hashResetToken(token: string) {
 function requireServerConfig() {
   const required = [
     "SUPABASE_URL",
-    "SUPABASE_SERVICE_ROLE_KEY",
     "WHATSAPP_PHONE_NUMBER_ID",
     "WHATSAPP_ACCESS_TOKEN",
     "WHATSAPP_AUTH_TEMPLATE_NAME",
     "WHATSAPP_AUTH_TEMPLATE_LANGUAGE",
     "WHATSAPP_RECOVERY_PEPPER",
   ];
+  const hasSupabaseAdminKey =
+    Boolean(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) ||
+    Boolean(Deno.env.get("SUPABASE_SECRET_KEYS"));
   const missing = required.filter((key) => !Deno.env.get(key));
+  if (!hasSupabaseAdminKey) missing.push("SUPABASE_SECRET_KEYS");
   if (missing.length) throw new Error("whatsapp_configuration_missing");
 }
 
 function adminClient() {
   const url = Deno.env.get("SUPABASE_URL")!;
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  let key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (secretKeysRaw) {
+    try {
+      const parsed = JSON.parse(secretKeysRaw) as Record<string, string>;
+      key = parsed.default ?? key;
+    } catch {
+      // Fall back to legacy service_role for compatibility.
+    }
+  }
+  if (!key) throw new Error("whatsapp_configuration_missing");
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
