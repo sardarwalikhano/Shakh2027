@@ -25,14 +25,21 @@ const RoleAccountsPage = lazy(() => import("./features/roles/RoleAccountsPage"))
 const DeliveryPricingPage = lazy(() => import("./features/delivery/DeliveryPricingPage"));
 
 function resolveRoute() {
-  const queryAuth = new URLSearchParams(window.location.search).get("auth");
+  const queryParams = new URLSearchParams(window.location.search);
+  const queryAuth = queryParams.get("auth");
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const hasAuthCallbackError =
+    queryParams.has("error") ||
+    queryParams.has("error_description") ||
+    queryParams.has("error_code") ||
+    hashParams.has("error") ||
+    hashParams.has("error_description") ||
+    hashParams.has("error_code");
   if (
     queryAuth === "password-recovery" ||
     queryAuth === "email-confirmation" ||
     hashParams.get("type") === "recovery" ||
-    hashParams.has("error") ||
-    hashParams.has("error_description")
+    hasAuthCallbackError
   ) return "auth";
   if (window.location.hash.startsWith("#auth")) return "auth";
   if (window.location.hash === "#" || window.location.hash === "") return "home";
