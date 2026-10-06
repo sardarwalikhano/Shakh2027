@@ -546,6 +546,25 @@ function Profile() {
     en: "English — LTR",
   };
 
+  const provider = String(user?.app_metadata?.provider ?? "email");
+  const providerLabel = provider === "google" ? "Google" : "ئیمەیڵ و وشەی نهێنی";
+  const emailStatus = user?.email_confirmed_at ? "پشتڕاستکراوە" : "هێشتا پشتڕاست نەکراوەتەوە";
+
+  async function signOutEverywhere() {
+    if (securityBusy) return;
+    setSecurityBusy(true);
+    setSecurityError(null);
+    try {
+      const { error } = await signOutAllSessions();
+      if (error) throw error;
+      window.location.hash = "#auth/sign-in";
+    } catch (caught) {
+      setSecurityError(caught instanceof Error ? caught.message : "دەرچوون لە هەموو سێشنەکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSecurityBusy(false);
+    }
+  }
+
   return <div className="space-y-5">
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
       <SectionHeader eyebrow="PROFILE" title="پڕۆفایلی من" body="زانیاریی account لە AuthContext و profiles ـی Supabase ـەوە دێت؛ هیچ city/phone/name ـێکی hardcoded نییە." />
