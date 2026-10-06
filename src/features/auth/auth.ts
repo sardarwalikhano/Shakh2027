@@ -5,6 +5,22 @@ const env = import.meta.env as ImportMetaEnv & {
   VITE_PUBLIC_SITE_URL?: string;
 };
 
+export function normalizeIraqPhone(value: string) {
+  const compact = value.trim().replace(/[()\s-]/g, '');
+  let national = compact;
+
+  if (national.startsWith('+964')) national = national.slice(4);
+  else if (national.startsWith('00964')) national = national.slice(5);
+  else if (national.startsWith('0')) national = national.slice(1);
+
+  const digits = national.replace(/\D/g, '');
+  if (!/^7\d{9}$/.test(digits)) {
+    throw new Error('ژمارەی مۆبایل بە فۆرماتی عێراق دروست نییە. نموونە: 07XXXXXXXXX');
+  }
+
+  return '+964' + digits;
+}
+
 function authRedirectUrl(flow: 'email-confirmation' | 'password-recovery' | 'google') {
   const configuredSiteUrl = env.VITE_PUBLIC_SITE_URL?.trim();
   const baseUrl = configuredSiteUrl || window.location.origin;
@@ -19,6 +35,26 @@ export async function signInWithPassword(email: string, password: string): Promi
   return supabase.auth.signInWithPassword({
     email: email.trim().toLowerCase(),
     password,
+  });
+}
+
+export async function requestWhatsAppOtp(phone: string) {
+  const normalizedPhone = normalizeIraqPhone(phone);
+  return supabase.auth.signInWithOtp({
+    phone: normalizedPhone,
+    options: {
+      channel: 'whatsapp',
+      shouldCreateUser: false,
+    },
+  });
+}
+
+export async function verifyWhatsAppOtp(phone: string, token: string) {
+  const normalizedPhone = normalizeIraqPhone(phone);
+  return supabase.auth.verifyOtp({
+    phone: normalizedPhone,
+    token: token.trim(),
+    type: 'sms',
   });
 }
 
