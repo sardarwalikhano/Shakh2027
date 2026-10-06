@@ -80,3 +80,7 @@ export async function updatePassword(password: string) {
 export async function signOut() {
   return supabase.auth.signOut();
 }
+
+export async function signOutAllSessions() {
+  return supabase.auth.signOut({ scope: 'global' });
+}
