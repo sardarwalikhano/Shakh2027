@@ -537,7 +537,9 @@ function Referral() {
 }
 
 function Profile() {
-  const { user, profile } = useAuth();
+  const { user, profile, roles } = useAuth();
+  const [securityBusy, setSecurityBusy] = useState(false);
+  const [securityError, setSecurityError] = useState<string | null>(null);
   const languageLabel: Record<"ckb" | "ar" | "en", string> = {
     ckb: "کوردی — RTL",
     ar: "العربية — RTL",
