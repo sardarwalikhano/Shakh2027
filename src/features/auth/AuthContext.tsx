@@ -40,7 +40,7 @@ async function loadIdentity(user: User | null) {
   if (profileResult.error) throw profileResult.error;
   if (roleResult.error) throw roleResult.error;
 
-  const roles = (roleResult.data ?? []).map((row) => row.role_code as string);
+  const roles = [...new Set((roleResult.data ?? []).map((row) => row.role_code as string))];
   if (!roles.length) {
     return { profile: (profileResult.data as Profile | null) ?? null, roles, permissions: [] as string[] };
   }
