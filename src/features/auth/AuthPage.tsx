@@ -60,7 +60,7 @@ function friendlyAuthError(error: unknown) {
   if (normalized.includes('otp_expired') || normalized.includes('token has expired') || normalized.includes('one-time token not found') || normalized.includes('invalid token')) return 'ئەم لینکی authentication کۆن یان بەکارهاتووە. تکایە لینکێکی نوێ داوا بکە.';
   if (normalized.includes('code verifier') || normalized.includes('pkce')) return 'سێشنی authentication بە دروستی نەگەڕایەوە. تکایە لاپەڕەکە نوێ بکەوە و دووبارە هەوڵ بدەرەوە.';
   if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
-  if (normalized.includes('access_denied')) return 'چوونەژوورەوە بە Google ڕەتکرایەوە.';
+  if (normalized.includes('error sending recovery email') || normalized.includes('failed to send recovery email')) return 'ناردنی ئیمەیڵی گەڕاندنەوە سەرکەوتوو نەبوو. ڕێکخستنی SMTP و دۆمەینی نێرەر لە Supabase و Resend پشکنە.';
   if (normalized.includes('invalid login credentials')) return 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.';
   if (normalized.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە. تکایە پەیامی پشتڕاستکردنەوەکە بکەرەوە.';
   if (normalized.includes('after ') && normalized.includes(' seconds')) {
@@ -421,7 +421,9 @@ export default function AuthPage() {
               <Field label="شار" value={city} onChange={setCity} required />
             </>}
 
-            <Field label="ئیمەیڵ" value={email} onChange={setEmail} required type="email" autoComplete="email" />
+            {mode !== 'reset-password' && (
+              <Field label="ئیمەیڵ" value={email} onChange={setEmail} required type="email" autoComplete="email" />
+            )}
 
             <Field
               label={mode === 'reset-password' ? 'وشەی نهێنیی نوێ' : 'وشەی نهێنی'}
