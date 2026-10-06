@@ -10,8 +10,13 @@ import {
 import { useAuth } from './AuthContext';
 
 function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' | 'email-confirmation' {
+  const hash = window.location.hash.slice(1);
+  const hashParams = new URLSearchParams(hash);
   const hashMode = window.location.hash.split('/')[1];
+
   if (hashMode === 'sign-up' || hashMode === 'reset-password' || hashMode === 'email-confirmation') return hashMode;
+  if (hashParams.get('type') === 'recovery') return 'reset-password';
+  if (hashParams.get('type') === 'signup' || hashParams.get('type') === 'email') return 'email-confirmation';
 
   const query = new URLSearchParams(window.location.search);
   if (query.get('auth') === 'password-recovery') return 'reset-password';
@@ -180,6 +185,9 @@ export default function AuthPage() {
         return;
       }
 
+      if (mode === 'reset-password' && !user) {
+        throw new Error('سێشنی گۆڕینی وشەی نهێنی بەردەست نییە. تکایە لینکی نوێی گۆڕینی وشەی نهێنی داوا بکە.');
+      }
       if (passwordError) throw new Error(passwordError);
       if (password !== confirmPassword) throw new Error('دوو وشەی نهێنییەکە وەک یەک نین.');
 
