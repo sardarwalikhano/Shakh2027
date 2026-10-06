@@ -25,6 +25,8 @@ function resolveMode(): 'sign-in' | 'sign-up' | 'reset-password' | 'email-confir
   return 'sign-in';
 }
 
+const AUTH_EMAIL_COOLDOWN_SECONDS = 65;
+
 function validatePassword(password: string) {
   if (password.length < 8) return 'وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت.';
   return null;
@@ -228,13 +230,13 @@ export default function AuthPage() {
     try {
       const { error: resetError } = await requestPasswordReset(normalizedEmail);
       if (resetError) throw resetError;
-      setResetCooldown(60);
+      setResetCooldown(AUTH_EMAIL_COOLDOWN_SECONDS);
       setMessage('ئەگەر ئەم ئیمەیڵە هەژمارێکی دروستی هەبێت، لینکی گۆڕینی وشەی نهێنی بۆی نێردرا.');
     } catch (caught) {
       const friendlyMessage = friendlyAuthError(caught);
       setError(friendlyMessage);
       const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
-      if (normalized.includes('rate limit') || normalized.includes('after ')) setResetCooldown(60);
+      if (normalized.includes('rate limit') || normalized.includes('after ')) setResetCooldown(AUTH_EMAIL_COOLDOWN_SECONDS);
     } finally {
       setBusy(false);
     }
@@ -257,13 +259,13 @@ export default function AuthPage() {
     try {
       const { error: resendError } = await resendSignupConfirmation(normalizedEmail);
       if (resendError) throw resendError;
-      setConfirmationCooldown(60);
+      setConfirmationCooldown(AUTH_EMAIL_COOLDOWN_SECONDS);
       setMessage('پەیامی پشتڕاستکردنەوە دووبارە نێردرا.');
     } catch (caught) {
       const friendlyMessage = friendlyAuthError(caught);
       setError(friendlyMessage);
       const normalized = caught instanceof Error ? caught.message.toLowerCase() : '';
-      if (normalized.includes('rate limit') || normalized.includes('after ')) setConfirmationCooldown(60);
+      if (normalized.includes('rate limit') || normalized.includes('after ')) setConfirmationCooldown(AUTH_EMAIL_COOLDOWN_SECONDS);
     } finally {
       setResending(false);
     }
