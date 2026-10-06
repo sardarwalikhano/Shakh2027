@@ -119,6 +119,11 @@ export default function AuthPage() {
     return () => window.clearTimeout(timer);
   }, [resetCooldown]);
 
+  useEffect(() => {
+    if (mode !== 'reset-password' || email.trim() || !user?.email) return;
+    setEmail(user.email);
+  }, [mode, email, user?.email]);
+
 
   useEffect(() => {
     if (user && (mode === 'email-confirmation' || mode === 'sign-in')) window.location.hash = '#market';
