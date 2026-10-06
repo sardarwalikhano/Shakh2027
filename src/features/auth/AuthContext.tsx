@@ -72,8 +72,9 @@ function syncAuthFlowRoute(flow: 'email-confirmation' | 'password-recovery') {
 }
 
 function hasRecoveryCallbackInUrl() {
+  const queryParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
-  return hashParams.get('type') === 'recovery';
+  return queryParams.get('auth') === 'password-recovery' || hashParams.get('type') === 'recovery';
 }
 
 
@@ -101,6 +102,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+
+    const handleAuthEvent = (event: string, nextSession: Session | null) => {
+      if (!mounted) return;
+
+      setSession(nextSession);
+
+      if (!nextSession) {
+        setProfile(null);
+        setRoles([]);
+        setPermissions([]);
+        setIdentityError(null);
+        setLoading(false);
+        return;
+      }
+
+      setIdentityError(null);
+
+      if (event === 'PASSWORD_RECOVERY') {
+        window.setTimeout(() => {
+          if (!mounted) return;
+          syncAuthFlowRoute('password-recovery');
+        }, 0);
+      }
+
+      window.setTimeout(async () => {
+        if (!mounted) return;
+        try {
+          const identity = await loadIdentity(nextSession.user);
+          if (!mounted) return;
+          setProfile(identity.profile);
+          setRoles(identity.roles);
+          setPermissions(identity.permissions);
+        } catch (error) {
+          if (!mounted) return;
+          setIdentityError(formatIdentityError(error));
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      }, 0);
+    };
+
+    const { data: listener } = supabase.auth.onAuthStateChange(handleAuthEvent);
 
     const bootstrap = async () => {
       const recoveryCallback = hasRecoveryCallbackInUrl();
@@ -136,45 +179,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setIdentityError(formatIdentityError(error));
       setLoading(false);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      if (!mounted) return;
-
-      setSession(nextSession);
-      if (!nextSession) {
-        setProfile(null);
-        setRoles([]);
-        setPermissions([]);
-        setIdentityError(null);
-        setLoading(false);
-        return;
-      }
-
-      setIdentityError(null);
-
-      if (event === 'PASSWORD_RECOVERY') {
-        window.setTimeout(() => {
-          if (!mounted) return;
-          syncAuthFlowRoute('password-recovery');
-        }, 0);
-      }
-
-      window.setTimeout(async () => {
-        if (!mounted) return;
-        try {
-          const identity = await loadIdentity(nextSession.user);
-          if (!mounted) return;
-          setProfile(identity.profile);
-          setRoles(identity.roles);
-          setPermissions(identity.permissions);
-        } catch (error) {
-          if (!mounted) return;
-          setIdentityError(formatIdentityError(error));
-        } finally {
-          if (mounted) setLoading(false);
-        }
-      }, 0);
     });
 
     return () => {
