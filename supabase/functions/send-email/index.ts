@@ -57,9 +57,21 @@ function verifyTypeForAction(action: string) {
 }
 
 function buildVerifyUrl(tokenHash: string, action: string, redirectTo: string) {
+  const type = verifyTypeForAction(action);
+
+  if (action === "signup" || action === "email" || action === "recovery") {
+    const url = new URL(redirectTo || supabaseUrl);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("auth", action === "recovery" ? "password-recovery" : "email-confirmation");
+    url.searchParams.set("token_hash", tokenHash);
+    url.searchParams.set("type", type);
+    return url.toString();
+  }
+
   const url = new URL(`${supabaseUrl}/auth/v1/verify`);
   url.searchParams.set("token", tokenHash);
-  url.searchParams.set("type", verifyTypeForAction(action));
+  url.searchParams.set("type", type);
   url.searchParams.set("redirect_to", redirectTo);
   return url.toString();
 }
