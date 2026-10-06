@@ -62,16 +62,18 @@ function formatIdentityError(error: unknown) {
 
 function syncAuthFlowRoute(flow: 'email-confirmation' | 'password-recovery') {
   const nextUrl = new URL(window.location.href);
+  for (const key of ['code', 'error', 'error_code', 'error_description']) {
+    nextUrl.searchParams.delete(key);
+  }
   nextUrl.searchParams.set('auth', flow);
   nextUrl.hash = flow === 'password-recovery' ? '#auth/reset-password' : '#auth/email-confirmation';
   window.history.replaceState({}, '', nextUrl.toString());
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-function syncRecoveryRoute() {
+function hasRecoveryCallbackInUrl() {
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
-  if (hashParams.get('type') !== 'recovery') return;
-  syncAuthFlowRoute('password-recovery');
+  return hashParams.get('type') === 'recovery';
 }
 
 
@@ -101,13 +103,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const bootstrap = async () => {
-      syncRecoveryRoute();
+      const recoveryCallback = hasRecoveryCallbackInUrl();
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       if (!mounted) return;
 
       setSession(data.session);
       setIdentityError(null);
+
+      if (recoveryCallback && data.session) {
+        syncAuthFlowRoute('password-recovery');
+      }
 
       try {
         const identity = await loadIdentity(data.session?.user ?? null);
