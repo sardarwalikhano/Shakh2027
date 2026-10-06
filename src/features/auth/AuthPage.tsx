@@ -3,6 +3,7 @@ import {
   normalizeIraqPhone,
   requestPasswordReset,
   requestWhatsAppOtp,
+  resetPasswordWithWhatsApp,
   resendSignupConfirmation,
   signInWithGoogle,
   signInWithPassword,
@@ -68,6 +69,11 @@ function friendlyAuthError(error: unknown) {
     if (match) return 'تکایە ' + match[1] + ' چرکە چاوەڕێ بکە و پاشان دووبارە هەوڵ بدەرەوە.';
   }
   if (normalized.includes('email rate limit') || normalized.includes('rate limit exceeded')) return 'ناردنی ئیمەیڵ سنووردارە. تکایە نزیکەی ٦٠ چرکە چاوەڕێ بکە و پاشان دووبارە هەوڵ بدەرەوە.';
+  if (normalized.includes('whatsapp_not_configured') || normalized.includes('whatsapp configuration')) return 'WhatsApp لە server ـی SHAKH هێشتا ڕێکنەخراوە. تکایە configuration ـی WhatsApp Cloud API تەواو بکە.';
+  if (normalized.includes('whatsapp_send_failed')) return 'ناردنی کۆدی WhatsApp سەرکەوتوو نەبوو. configuration ـی Meta WhatsApp و template ـەکە پشکنە.';
+  if (normalized.includes('rate_limited') || normalized.includes('otp rate limited')) return 'کۆدی نوێ زۆر زوو داواکرا. تکایە نزیکەی ٦٠ چرکە چاوەڕێ بکە.';
+  if (normalized.includes('phone_already_in_use')) return 'ئەم ژمارەیە پێشتر بۆ هەژمارێکی تر بەکارهاتووە.';
+  if (normalized.includes('invalid_phone')) return 'ژمارەی مۆبایل بە فۆرماتی عێراق دروست نییە.';
   if (normalized.includes('password')) return message || 'وشەی نهێنی پەسەند نەکرا.';
   if (normalized.includes('rate limit')) return 'داواکارییەکان زۆرن. تکایە دواتر هەوڵ بدەرەوە.';
   if (normalized.includes('redirect')) return 'لینکی authentication ڕێک نەخراوە. Redirect URL ـەکانی Supabase پشکنە.';
@@ -89,6 +95,8 @@ export default function AuthPage() {
   const [resetCooldown, setResetCooldown] = useState(0);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [whatsappOtp, setWhatsappOtp] = useState('');
+  const [whatsappRequestId, setWhatsappRequestId] = useState('');
+  const [whatsappResetToken, setWhatsappResetToken] = useState('');
   const [whatsappStep, setWhatsappStep] = useState<'phone' | 'otp' | 'password'>('phone');
   const [whatsappCooldown, setWhatsappCooldown] = useState(0);
   const [whatsappBusy, setWhatsappBusy] = useState(false);
@@ -148,6 +156,8 @@ export default function AuthPage() {
     setConfirmPassword('');
     setWhatsappPhone('');
     setWhatsappOtp('');
+    setWhatsappRequestId('');
+    setWhatsappResetToken('');
     setWhatsappStep('phone');
     setWhatsappCooldown(0);
     setWhatsappBusy(false);
@@ -294,9 +304,12 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
-      const { error: otpError } = await requestWhatsAppOtp(normalizedPhone);
+      const { data, error: otpError } = await requestWhatsAppOtp(normalizedPhone);
       if (otpError) throw otpError;
+      if (!data?.requestId) throw new Error('whatsapp_auth_failed');
       setWhatsappPhone(normalizedPhone);
+      setWhatsappRequestId(String(data.requestId));
+      setWhatsappResetToken('');
       setWhatsappStep('otp');
       setWhatsappOtp('');
       setWhatsappCooldown(60);
@@ -323,9 +336,11 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
-      const { data, error: verifyError } = await verifyWhatsAppOtp(whatsappPhone, whatsappOtp);
+      if (!whatsappRequestId) throw new Error('whatsapp_auth_failed');
+      const { data, error: verifyError } = await verifyWhatsAppOtp(whatsappPhone, whatsappOtp, whatsappRequestId);
       if (verifyError) throw verifyError;
-      if (!data.session) throw new Error('سێشنی authentication دروست نەبوو.');
+      if (!data?.resetToken) throw new Error('whatsapp_auth_failed');
+      setWhatsappResetToken(String(data.resetToken));
       setWhatsappStep('password');
       setWhatsappOtp('');
       setMessage('ژمارەکە پشتڕاستکرایەوە. ئێستا وشەی نهێنییەکی نوێ دابنێ.');
@@ -352,12 +367,15 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
-      const { error: updateError } = await updatePassword(password);
+      if (!whatsappRequestId || !whatsappResetToken) throw new Error('invalid_reset_token');
+      const { error: updateError } = await resetPasswordWithWhatsApp(
+        whatsappRequestId,
+        whatsappResetToken,
+        password,
+      );
       if (updateError) throw updateError;
-      const { error: signOutError } = await signOutAllSessions();
-      if (signOutError) throw signOutError;
       navigateToSignIn();
-      setMessage('وشەی نهێنی بە سەرکەوتوویی نوێکرایەوە و هەموو session ـەکان داخراون.');
+      setMessage('وشەی نهێنی بە WhatsApp بە سەرکەوتوویی نوێکرایەوە. ئێستا بە وشەی نهێنیی نوێ بچۆ ژوورەوە.');
     } catch (caught) {
       setError(friendlyAuthError(caught));
     } finally {
@@ -565,7 +583,7 @@ export default function AuthPage() {
                   <button type="button" onClick={() => void verifyWhatsAppRecoveryCode()} disabled={whatsappBusy || whatsappOtp.length !== 6} className="min-h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
                     {whatsappBusy ? 'پشتڕاست دەکرێت...' : 'پشتڕاستکردنەوەی کۆد'}
                   </button>
-                  <button type="button" onClick={() => { setWhatsappStep('phone'); setWhatsappOtp(''); setError(null); setMessage(null); }} disabled={whatsappBusy} className="text-xs font-black text-slate-500 hover:text-emerald-700">
+                  <button type="button" onClick={() => { setWhatsappStep('phone'); setWhatsappOtp(''); setWhatsappRequestId(''); setWhatsappResetToken(''); setError(null); setMessage(null); }} disabled={whatsappBusy} className="text-xs font-black text-slate-500 hover:text-emerald-700">
                     گۆڕینی ژمارە
                   </button>
                 </>
