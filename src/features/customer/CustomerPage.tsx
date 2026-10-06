@@ -12,6 +12,7 @@ import { createProductReview, listReviewableItems, type ReviewableItem } from ".
 import { getOrderDetails, listCustomerOrders, type ManagedOrderSummary, type OrderDetail } from "../commerce/orderManagementApi";
 import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications, type NotificationRow } from "../notifications/notificationsApi";
 import { useAuth } from "../auth/AuthContext";
+import { signOutAllSessions } from "../auth/auth";
 
 function resolveSection(): CustomerSection {
   const value = window.location.hash.split("/")[1] as CustomerSection | undefined;
@@ -536,12 +537,33 @@ function Referral() {
 }
 
 function Profile() {
-  const { user, profile } = useAuth();
+  const { user, profile, roles } = useAuth();
+  const [securityBusy, setSecurityBusy] = useState(false);
+  const [securityError, setSecurityError] = useState<string | null>(null);
   const languageLabel: Record<"ckb" | "ar" | "en", string> = {
     ckb: "کوردی — RTL",
     ar: "العربية — RTL",
     en: "English — LTR",
   };
+
+  const provider = String(user?.app_metadata?.provider ?? "email");
+  const providerLabel = provider === "google" ? "Google" : "ئیمەیڵ و وشەی نهێنی";
+  const emailStatus = user?.email_confirmed_at ? "پشتڕاستکراوە" : "هێشتا پشتڕاست نەکراوەتەوە";
+
+  async function signOutEverywhere() {
+    if (securityBusy) return;
+    setSecurityBusy(true);
+    setSecurityError(null);
+    try {
+      const { error } = await signOutAllSessions();
+      if (error) throw error;
+      window.location.hash = "#auth/sign-in";
+    } catch (caught) {
+      setSecurityError(caught instanceof Error ? caught.message : "دەرچوون لە هەموو سێشنەکان سەرکەوتوو نەبوو.");
+    } finally {
+      setSecurityBusy(false);
+    }
+  }
 
   return <div className="space-y-5">
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
@@ -552,9 +574,43 @@ function Profile() {
         <ProfileRow label="ژمارەی مۆبایل" value={profile?.phone || "تۆمار نەکراوە"} />
         <ProfileRow label="زمان" value={languageLabel[profile?.preferred_language ?? "ckb"]} />
         <ProfileRow label="شار" value={profile?.city || "دیاری نەکراوە"} />
+        <ProfileRow label="ڕۆڵ" value={roles.length ? roles.join("، ") : "customer"} />
+        <ProfileRow label="دۆخی ئیمەیڵ" value={emailStatus} />
+        <ProfileRow label="شێوازی چوونەژوورەوە" value={providerLabel} />
         <ProfileRow label="D_SH Points" value={new Intl.NumberFormat("ku-IQ").format(Number(profile?.d_sh_points ?? 0))} />
       </div>
     </div>
+
+    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-7">
+      <SectionHeader
+        eyebrow="SECURITY & PRIVACY"
+        title="ئاسایش و پرایڤیسی هەژمار"
+        body="زانیاریی پڕۆفایل بە RLS لە Supabase کۆنترۆڵ دەکرێت و تەنها هەژمارەکەت یان دەسەڵاتی ڕێگەپێدراو دەتوانێت بەشی پەیوەندیدار ببینێت. وشەی نهێنی لە profiles ـدا هەڵناگیرێت؛ Supabase Auth بەڕێوەی دەبات."
+      />
+      {securityError ? <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{securityError}</div> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-[10px] font-black text-slate-400">AUTH PROVIDER</p>
+          <p className="mt-1 text-sm font-black text-slate-800">{providerLabel}</p>
+          <p className="mt-1 text-[11px] font-semibold text-slate-500">ئیمەیڵ: {emailStatus}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-[10px] font-black text-slate-400">PASSWORD</p>
+          <p className="mt-1 text-sm font-black text-slate-800">وشەی نهێنی بە Auth ـەوە پارێزراوە</p>
+          <a href="#auth/reset-password" className="mt-2 inline-flex text-[11px] font-black text-orange-600 hover:text-orange-700">گۆڕینی وشەی نهێنی</a>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black text-rose-900">دەرچوون لە هەموو ئامێرەکان</p>
+          <p className="mt-1 text-[11px] font-semibold leading-6 text-rose-700">هەموو session ـە چالاکەکانت دادەخرێنەوە و دووبارە پێویستە login بکەیت.</p>
+        </div>
+        <button type="button" onClick={() => void signOutEverywhere()} disabled={securityBusy} className="min-h-11 shrink-0 rounded-2xl bg-rose-600 px-4 text-xs font-black text-white transition hover:bg-rose-700 disabled:cursor-wait disabled:opacity-50">
+          {securityBusy ? "دەرچوون..." : "دەرچوون لە هەموو session ـەکان"}
+        </button>
+      </div>
+    </section>
+
     <div className="grid gap-3 sm:grid-cols-2">
       <a href="#notifications" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><BellRingIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">پەیام و ئاگادارکردنەوە</p><p className="mt-2 text-xs leading-6 text-slate-500">Notification preferences و message center.</p></a>
       <a href="#account/referral" className="rounded-[24px] border border-slate-200 bg-white p-5 text-right shadow-[var(--shakh-shadow-sm)] transition hover:border-slate-300"><GiftIcon className="h-5 w-5 text-orange-600" /><p className="mt-4 text-sm font-black">Referral center</p><p className="mt-2 text-xs leading-6 text-slate-500">لینک و rewards لە یەک شوێن.</p></a>
