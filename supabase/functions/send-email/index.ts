@@ -87,7 +87,7 @@ async function sendAuthEmail(params: { email: string; token: string; tokenHash: 
   const copy = copyFor(params.action);
   const verifyUrl = buildVerifyUrl(params.tokenHash, params.action, params.redirectTo);
   const { error } = await resend.emails.send({
-    from: "SHAKH <welcome@mail.daim-post.online>",
+    from: "SHAKH <auth@mail.daim-post.online>",
     to: [params.email],
     subject: copy.subject,
     html: emailHtml({ ...copy, verifyUrl, token: params.token, address: params.email }),
