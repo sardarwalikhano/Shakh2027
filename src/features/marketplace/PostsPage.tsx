@@ -4,6 +4,7 @@ import { InlineError, LoadingState, SuccessNotice } from "../../components/ux/Ui
 import { useAuth } from "../auth/AuthContext";
 import {
   createMarketplacePost,
+  getAllowedPostSections,
   listAdminMarketplacePosts,
   listPostCategories,
   listPostRoles,
@@ -92,7 +93,9 @@ function statusLabel(status: MarketplacePost["status"]) {
 }
 
 export default function PostsPage() {
-  const { user } = useAuth();
+  const { user, roles: userRoles } = useAuth();
+  const allowedSectionCodes = useMemo(() => getAllowedPostSections(userRoles), [userRoles]);
+  const isSuperAdmin = userRoles.includes("super_admin");
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [roles, setRoles] = useState<PostRole[]>([]);
@@ -137,6 +140,13 @@ export default function PostsPage() {
   useEffect(() => {
     void load(true);
   }, []);
+
+  useEffect(() => {
+    if (!allowedSectionCodes.length) return;
+    setForm((current) => allowedSectionCodes.includes(current.sectionCode)
+      ? current
+      : { ...current, sectionCode: allowedSectionCodes[0] });
+  }, [allowedSectionCodes]);
 
   function mergeSelectedFiles(nextFiles: File[]) {
     setError("");
@@ -189,6 +199,11 @@ export default function PostsPage() {
       return;
     }
 
+    if (!allowedSectionCodes.includes(form.sectionCode)) {
+      setError("ئەم بەشە بۆ ڕۆڵی هەژمارەکەت ڕێگەپێدراو نییە.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
@@ -215,7 +230,7 @@ export default function PostsPage() {
         isFeatured: form.isFeatured,
       });
 
-      setForm(INITIAL_FORM);
+      setForm({ ...INITIAL_FORM, sectionCode: allowedSectionCodes[0] ?? "cars" });
       setFiles([]);
       setSuccess("پۆست بە سەرکەوتوویی تۆمار کرا.");
       await load(false);
@@ -256,7 +271,11 @@ export default function PostsPage() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-600">CREATE POST</p>
                 <h2 className="mt-1 text-xl font-black text-slate-950">پۆستی نوێ</h2>
-                <p className="mt-2 text-xs leading-6 text-slate-500">بۆ هەمووان یان بۆ ڕۆڵ/کاتەگۆری دیاریکراو بڵاوی بکەوە.</p>
+                <p className="mt-2 text-xs leading-6 text-slate-500">
+                  {isSuperAdmin
+                    ? "سوبر ئەدمین دەتوانێت لە هەموو بەش و کاتەگۆرییەکان پۆست بکات."
+                    : "هەژمارەکەت تەنها لە بەشی ڕۆڵی خۆی و ئۆتۆمبێل دەتوانێت پۆست بکات."}
+                </p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-black text-slate-500">MAX {MAX_POST_IMAGES} IMAGES</span>
             </div>
@@ -265,17 +284,26 @@ export default function PostsPage() {
               <label className="space-y-1.5">
                 <span className="text-[10px] font-black text-slate-500">بەش</span>
                 <select value={form.sectionCode} onChange={(event) => update("sectionCode", event.target.value as PostSection)} className="min-h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-xs font-black outline-none focus:border-orange-300">
-                  {SECTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  {SECTIONS.filter((item) => allowedSectionCodes.includes(item.value)).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </label>
 
-              <label className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-500">ڕۆڵ</span>
-                <select value={form.targetRole} onChange={(event) => update("targetRole", event.target.value)} className="min-h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-xs font-black outline-none focus:border-orange-300">
-                  <option value="">هەمووان</option>
-                  {roles.map((role) => <option key={role.code} value={role.code}>{localizeRole(role)}</option>)}
-                </select>
-              </label>
+              {isSuperAdmin ? (
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-500">ڕۆڵی ئامانج</span>
+                  <select value={form.targetRole} onChange={(event) => update("targetRole", event.target.value)} className="min-h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-xs font-black outline-none focus:border-orange-300">
+                    <option value="">هەمووان</option>
+                    {roles.map((role) => <option key={role.code} value={role.code}>{localizeRole(role)}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-500">دەسەڵاتی پۆست</span>
+                  <div className="min-h-11 rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-[10px] font-black leading-5 text-orange-800">
+                    تەنها: {allowedSectionCodes.map((code) => SECTIONS.find((item) => item.value === code)?.label ?? code).join(" + ")}
+                  </div>
+                </div>
+              )}
 
               <label className="space-y-1.5">
                 <span className="text-[10px] font-black text-slate-500">کاتەگۆری</span>
