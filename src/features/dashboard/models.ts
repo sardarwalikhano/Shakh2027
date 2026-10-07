@@ -35,7 +35,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Audit Logs", hint: "تۆمارەکان", icon: "≋", permission: "platform.manage" },
     { label: "Analytics", hint: "ئامار و conversion", icon: "⌁", permission: "analytics.read" },
     { label: "Promotions", hint: "coupon و داشکاندن", icon: "%", permission: "promotions.manage" },
-    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "platform.manage" },
+    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "posts.create" },
     { label: "Settings", hint: "ڕێکخستن", icon: "⚙", permission: "platform.manage" },
   ],
   admin: [
@@ -51,7 +51,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Support", hint: "پشتیوانی", icon: "?", permission: "support.manage" },
     { label: "Analytics", hint: "ئامار و conversion", icon: "⌁", permission: "analytics.read" },
     { label: "Promotions", hint: "coupon و داشکاندن", icon: "%", permission: "promotions.manage" },
-    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "platform.manage" },
+    { label: "Posts", hint: "پۆست و وێنە و target", icon: "✦", permission: "posts.create" },
   ],
   vendor: [
     { label: "Overview", hint: "کورتەی ستۆر", icon: "◉" },
@@ -59,6 +59,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Orders", hint: "ئۆردەرەکان", icon: "□", permission: "orders.manage" },
     { label: "Promotions", hint: "پرۆمۆشن", icon: "%", permission: "catalog.manage" },
     { label: "Store", hint: "پڕۆفایلی ستۆر", icon: "⌂" },
+    { label: "Posts", hint: "پۆستی ڕۆڵ و ئۆتۆمبێل", icon: "✦", permission: "posts.create" },
   ],
   captain: [
     { label: "Overview", hint: "کاری ئەمڕۆ", icon: "◉" },
@@ -66,6 +67,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "My Deliveries", hint: "گەیاندنەکانم", icon: "↗" },
     { label: "Earnings", hint: "داهات", icon: "₡" },
     { label: "Profile", hint: "پڕۆفایل", icon: "○" },
+    { label: "Posts", hint: "پۆستی گەیاندن و ئۆتۆمبێل", icon: "✦", permission: "posts.create" },
   ],
   captain_manager: [
     { label: "Overview", hint: "کورتەی delivery", icon: "◉" },
@@ -74,6 +76,7 @@ export const ROLE_MODULES: Record<DashboardRole, DashboardModule[]> = {
     { label: "Assignments", hint: "دابەشکردنی ئۆردەر", icon: "↗", permission: "delivery.manage" },
     { label: "Live Monitor", hint: "چاودێری", icon: "◎", permission: "delivery.manage" },
     { label: "Performance", hint: "کارایی", icon: "⌁", permission: "orders.read" },
+    { label: "Posts", hint: "پۆستی گەیاندن و ئۆتۆمبێل", icon: "✦", permission: "posts.create" },
   ],
   support: [
     { label: "Queue", hint: "تیکەتە چاوەڕوانەکان", icon: "◉", permission: "support.manage" },
