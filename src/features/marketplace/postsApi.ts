@@ -76,6 +76,44 @@ export type PostCategory = {
   nameEn: string;
 };
 
+export const ALL_POST_SECTIONS: PostSection[] = [
+  "marketplace",
+  "food",
+  "supermarket",
+  "fashion",
+  "beauty",
+  "cars",
+  "umrah",
+  "delivery",
+  "offers",
+  "announcement",
+];
+
+const ROLE_ALLOWED_POST_SECTIONS: Record<string, PostSection[]> = {
+  customer: ["cars"],
+  car_dealer: ["cars"],
+  restaurant_vendor: ["food", "cars"],
+  supermarket_vendor: ["supermarket", "cars"],
+  fashion_vendor: ["fashion", "cars"],
+  beauty_vendor: ["beauty", "cars"],
+  umrah_agency: ["umrah", "cars"],
+  captain: ["delivery", "cars"],
+  captain_manager: ["delivery", "cars"],
+};
+
+export function getAllowedPostSections(roles: string[]): PostSection[] {
+  if (roles.includes("super_admin")) return [...ALL_POST_SECTIONS];
+
+  const allowed = new Set<PostSection>();
+  for (const role of roles) {
+    for (const section of ROLE_ALLOWED_POST_SECTIONS[role] ?? []) {
+      allowed.add(section);
+    }
+  }
+  return ALL_POST_SECTIONS.filter((section) => allowed.has(section));
+}
+
+
 function asPost(row: Record<string, unknown>): MarketplacePost {
   return {
     id: String(row.id),
