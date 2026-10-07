@@ -40,39 +40,11 @@ function copyFor(action: string) {
   }
 }
 
-function verifyTypeForAction(action: string) {
-  switch (action) {
-    case "signup":
-    case "email":
-      return "email";
-    case "recovery":
-      return "recovery";
-    case "magiclink":
-      return "magiclink";
-    case "invite":
-      return "invite";
-    default:
-      return action;
-  }
-}
-
 function buildVerifyUrl(tokenHash: string, action: string, redirectTo: string) {
-  const type = verifyTypeForAction(action);
-
-  if (action === "signup" || action === "email" || action === "recovery") {
-    const url = new URL(redirectTo || supabaseUrl);
-    url.search = "";
-    url.hash = "";
-    url.searchParams.set("auth", action === "recovery" ? "password-recovery" : "email-confirmation");
-    url.searchParams.set("token_hash", tokenHash);
-    url.searchParams.set("type", type);
-    return url.toString();
-  }
-
-  const url = new URL(`${supabaseUrl}/auth/v1/verify`);
+  const url = new URL(supabaseUrl + "/auth/v1/verify");
   url.searchParams.set("token", tokenHash);
-  url.searchParams.set("type", type);
-  url.searchParams.set("redirect_to", redirectTo);
+  url.searchParams.set("type", action);
+  url.searchParams.set("redirect_to", redirectTo || supabaseUrl);
   return url.toString();
 }
 
