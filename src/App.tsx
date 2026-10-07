@@ -107,7 +107,7 @@ export default function App() {
         {route === "audit" && <RequirePermission permission="platform.manage"><AuditConsolePage /></RequirePermission>}
         {route === "analytics" && <RequirePermission permission="analytics.read"><AnalyticsPage /></RequirePermission>}
         {route === "promotions" && <RequirePermission permission="promotions.manage"><PromotionsPage /></RequirePermission>}
-        {route === "posts" && <RequirePermission permission="platform.manage"><PostsPage /></RequirePermission>}
+        {route === "posts" && <RequirePermission permission="posts.create"><PostsPage /></RequirePermission>}
         {route === "vendor" && <RequirePermission permission="catalog.manage"><VendorCenterPage /></RequirePermission>}
         {route === "delivery-pricing" && <RequirePermission permission="delivery.manage"><DeliveryPricingPage /></RequirePermission>}
         {route === "delivery" && <RequireAuth><DeliveryPage /></RequireAuth>}
