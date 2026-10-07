@@ -41,9 +41,10 @@ function copyFor(action: string) {
 }
 
 function buildVerifyUrl(tokenHash: string, action: string, redirectTo: string) {
+  const type = verifyTypeForAction(action);
   const url = new URL(supabaseUrl + "/auth/v1/verify");
   url.searchParams.set("token", tokenHash);
-  url.searchParams.set("type", action);
+  url.searchParams.set("type", type);
   url.searchParams.set("redirect_to", redirectTo || supabaseUrl);
   return url.toString();
 }
