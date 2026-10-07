@@ -39,6 +39,8 @@ function resolveRoute() {
     queryAuth === "password-recovery" ||
     queryAuth === "email-confirmation" ||
     queryParams.has("code") ||
+    (queryParams.has("token_hash") &&
+      (queryParams.get("type") === "email" || queryParams.get("type") === "recovery")) ||
     hashParams.get("type") === "recovery" ||
     hashParams.has("access_token") ||
     hashParams.has("refresh_token") ||
@@ -84,7 +86,11 @@ export default function App() {
       setTrackingOrderId(resolveTrackingOrderId());
     };
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("popstate", onHashChange);
+    };
   }, []);
 
   return (
