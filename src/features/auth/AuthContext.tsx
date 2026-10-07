@@ -62,7 +62,7 @@ function formatIdentityError(error: unknown) {
 
 function syncAuthFlowRoute(flow: 'email-confirmation' | 'password-recovery') {
   const nextUrl = new URL(window.location.href);
-  for (const key of ['code', 'error', 'error_code', 'error_description']) {
+  for (const key of ['code', 'error', 'error_code', 'error_description', 'token_hash', 'type']) {
     nextUrl.searchParams.delete(key);
   }
   nextUrl.searchParams.set('auth', flow);
@@ -74,7 +74,23 @@ function syncAuthFlowRoute(flow: 'email-confirmation' | 'password-recovery') {
 function hasRecoveryCallbackInUrl() {
   const queryParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.slice(1));
-  return queryParams.get('auth') === 'password-recovery' || hashParams.get('type') === 'recovery';
+  return queryParams.get('auth') === 'password-recovery'
+    || queryParams.get('token_hash') !== null && queryParams.get('type') === 'recovery'
+    || hashParams.get('type') === 'recovery';
+}
+
+function getTokenHashCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const tokenHash = params.get('token_hash');
+  const type = params.get('type');
+
+  if (!tokenHash || (type !== 'email' && type !== 'recovery')) return null;
+
+  return {
+    tokenHash,
+    type: type as 'email' | 'recovery',
+    flow: type === 'recovery' ? 'password-recovery' as const : 'email-confirmation' as const,
+  };
 }
 
 
@@ -147,19 +163,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const bootstrap = async () => {
       const recoveryCallback = hasRecoveryCallbackInUrl();
+      const tokenHashCallback = getTokenHashCallback();
+      let verifiedSession: Session | null = null;
+
+      if (tokenHashCallback) {
+        const verification = await supabase.auth.verifyOtp({
+          type: tokenHashCallback.type,
+          token_hash: tokenHashCallback.tokenHash,
+        });
+        if (verification.error) throw verification.error;
+        verifiedSession = verification.data.session;
+      }
+
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       if (!mounted) return;
 
-      setSession(data.session);
+      const activeSession = verifiedSession ?? data.session;
+      setSession(activeSession);
       setIdentityError(null);
 
-      if (recoveryCallback && data.session) {
+      if (tokenHashCallback && activeSession) {
+        syncAuthFlowRoute(tokenHashCallback.flow);
+      } else if (recoveryCallback && activeSession) {
         syncAuthFlowRoute('password-recovery');
       }
 
       try {
-        const identity = await loadIdentity(data.session?.user ?? null);
+        const identity = await loadIdentity(activeSession?.user ?? null);
         if (!mounted) return;
         setProfile(identity.profile);
         setRoles(identity.roles);
