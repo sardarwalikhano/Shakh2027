@@ -17,7 +17,7 @@ export default function GlobalHeader() {
   const [searchQuery, setSearchQuery] = useState("");
   const desktopSearchRef = useRef<HTMLInputElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
-  const { user, profile } = useAuth();
+  const { user, profile, hasPermission } = useAuth();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
@@ -139,6 +139,16 @@ export default function GlobalHeader() {
             <BellIcon className="h-[19px] w-[19px]" />
             {unreadNotifications > 0 && <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-orange-500 px-1 text-[8px] font-black leading-4 text-white">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}
           </a>
+          {user && hasPermission("posts.create") ? (
+            <a
+              href="#posts"
+              className="inline-flex h-10 items-center justify-center rounded-[13px] bg-orange-500 px-3 text-[10px] font-black text-white shadow-sm transition hover:bg-orange-600"
+              aria-label="پۆستکردن"
+            >
+              <span className="sm:hidden">✦</span>
+              <span className="hidden sm:inline">پۆستکردن</span>
+            </a>
+          ) : null}
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
               <a href="#account" className="flex h-10 items-center gap-2 rounded-[13px] border border-slate-200 bg-white px-2.5 text-right transition hover:border-slate-300 hover:bg-slate-50">
