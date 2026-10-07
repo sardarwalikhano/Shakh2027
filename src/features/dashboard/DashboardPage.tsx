@@ -103,7 +103,7 @@ const quickActionCandidates: QuickAction[] = [
     label: 'Posts Center',
     description: 'ڕۆڵ، کاتەگۆری و وێنە',
     href: '#posts',
-    permission: 'platform.manage',
+    permission: 'posts.create',
     moduleLabels: ['Posts'],
   },
   {
