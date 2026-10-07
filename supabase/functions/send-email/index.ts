@@ -40,6 +40,26 @@ function copyFor(action: string) {
   }
 }
 
+function verifyTypeForAction(action: string) {
+  switch (action) {
+    case "signup":
+    case "email":
+      return "email";
+    case "recovery":
+      return "recovery";
+    case "magiclink":
+      return "magiclink";
+    case "invite":
+      return "invite";
+    case "email_change":
+      return "email";
+    case "reauthentication":
+      return "reauthentication";
+    default:
+      return action;
+  }
+}
+
 function buildVerifyUrl(tokenHash: string, action: string, redirectTo: string) {
   const type = verifyTypeForAction(action);
   const url = new URL(supabaseUrl + "/auth/v1/verify");
