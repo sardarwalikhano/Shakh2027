@@ -3,7 +3,6 @@ import {
   requestPasswordReset,
   resendSignupConfirmation,
   signInWithPassword,
-  verifyAuthTokenFromUrl,
   signOut,
   signUpWithPassword,
   updatePassword,
@@ -106,34 +105,6 @@ export default function AuthPage() {
       setShowResendConfirmation(false);
       window.history.replaceState({}, '', window.location.pathname);
       window.location.hash = '#auth/sign-in';
-    } else {
-      const params = new URLSearchParams(window.location.search);
-      const tokenHash = params.get('token_hash');
-      const tokenType = params.get('type');
-      if (tokenHash && (tokenType === 'email' || tokenType === 'recovery')) {
-        setBusy(true);
-        void verifyAuthTokenFromUrl()
-          .then((result) => {
-            if (cancelled || !result) return;
-            if (result.error) {
-              setError(friendlyAuthError(result.error));
-              return;
-            }
-            if (tokenType === 'recovery') {
-              setMode('reset-password');
-              setMessage('لینکی نوێی گۆڕینی وشەی نهێنی بە سەرکەوتوویی پشتڕاست کرا. ئێستا وشەی نهێنی نوێ دابنێ.');
-            } else {
-              setMode('email-confirmation');
-              setMessage('ئیمەیڵەکەت بە سەرکەوتوویی پشتڕاست کرا.');
-            }
-          })
-          .catch((caught) => {
-            if (!cancelled) setError(friendlyAuthError(caught));
-          })
-          .finally(() => {
-            if (!cancelled) setBusy(false);
-          });
-      }
     }
 
     const onLocationChange = () => setMode(resolveMode());
