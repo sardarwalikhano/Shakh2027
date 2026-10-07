@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
+import { verifyAuthTokenFromUrl } from './auth';
 
 type Profile = {
   id: string;
@@ -167,10 +168,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let verifiedSession: Session | null = null;
 
       if (tokenHashCallback) {
-        const verification = await supabase.auth.verifyOtp({
-          type: tokenHashCallback.type,
-          token_hash: tokenHashCallback.tokenHash,
-        });
+        const verification = await verifyAuthTokenFromUrl();
+        if (!verification) throw new Error('Authentication callback token missing.');
         if (verification.error) throw verification.error;
         verifiedSession = verification.data.session;
       }
